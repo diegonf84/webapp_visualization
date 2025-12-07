@@ -1,0 +1,20 @@
+services:
+  dashboard:
+    build: .
+    ports:
+      - "8050:8050"
+    volumes:
+      # Mount source code for development (hot reload)
+      - ./src:/app/src
+      - ./app.py:/app/app.py
+      - ./config.py:/app/config.py
+      # Mount data directory
+      - ./data:/app/data
+    environment:
+      - DASH_DEBUG=true
+      - DATA_SOURCE=local
+      # Uncomment for S3 access
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # - S3_BUCKET=${S3_BUCKET}
+    command: uv run python app.py

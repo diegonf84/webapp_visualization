@@ -1,0 +1,17 @@
+# Dash framework
+dash
+dash-bootstrap-components
+
+# Data processing
+pandas
+pyarrow
+
+# AWS S3 access (for future use)
+boto3
+s3fs
+
+# Development
+python-dotenv
+
+# Production server
+gunicorn
