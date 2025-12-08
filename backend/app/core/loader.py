@@ -1,8 +1,14 @@
 import os
+import logging
 import pandas as pd
 from functools import lru_cache
+from typing import Optional
 
 from app.core import config
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class DataLoader:
@@ -10,8 +16,26 @@ class DataLoader:
 
     def __init__(self):
         self.data_source = config.DATA_SOURCE
-        self._subramos_df = None
-        self._otros_conceptos_df = None
+        self._subramos_df: Optional[pd.DataFrame] = None
+        self._otros_conceptos_df: Optional[pd.DataFrame] = None
+        self._s3_fs = None
+
+        logger.info(f"DataLoader initialized with data_source: {self.data_source}")
+        if self.data_source == "s3":
+            logger.info(f"S3 bucket: {config.S3_BUCKET}, prefix: {config.S3_PREFIX}")
+
+    def _get_s3_fs(self):
+        """Get or create S3 filesystem connection."""
+        if self._s3_fs is None:
+            import s3fs
+
+            self._s3_fs = s3fs.S3FileSystem(
+                key=config.AWS_ACCESS_KEY_ID,
+                secret=config.AWS_SECRET_ACCESS_KEY,
+                client_kwargs={"region_name": config.AWS_REGION}
+            )
+            logger.info("S3 filesystem connection established")
+        return self._s3_fs
 
     def _get_local_path(self, filename: str) -> str:
         """Get full path for local file, checking parquet then csv."""
@@ -20,22 +44,26 @@ class DataLoader:
         # Try parquet first
         parquet_path = os.path.join(config.LOCAL_DATA_DIR, f"{base_name}.parquet")
         if os.path.exists(parquet_path):
+            logger.info(f"Found parquet file: {parquet_path}")
             return parquet_path
 
         # Fall back to CSV
         csv_path = os.path.join(config.LOCAL_DATA_DIR, f"{base_name}.csv")
         if os.path.exists(csv_path):
+            logger.info(f"Found CSV file: {csv_path}")
             return csv_path
 
         # Try with _sample suffix for development
         sample_csv = os.path.join(config.LOCAL_DATA_DIR, f"{base_name}_sample.csv")
         if os.path.exists(sample_csv):
+            logger.info(f"Found sample CSV file: {sample_csv}")
             return sample_csv
 
         raise FileNotFoundError(f"No data file found for {filename}")
 
     def _load_file(self, filepath: str) -> pd.DataFrame:
         """Load a single file (parquet or csv)."""
+        logger.info(f"Loading local file: {filepath}")
         if filepath.endswith(".parquet"):
             return pd.read_parquet(filepath)
         else:
@@ -43,14 +71,24 @@ class DataLoader:
 
     def _load_from_s3(self, filename: str) -> pd.DataFrame:
         """Load file from S3 bucket."""
-        import s3fs
+        s3_path = f"s3://{config.S3_BUCKET}/{config.S3_PREFIX}{filename}"
+        logger.info(f"Loading from S3: {s3_path}")
 
-        s3_path = f"s3://{config.S3_BUCKET}/{config.S3_PREFIX}/{filename}"
+        fs = self._get_s3_fs()
 
-        if filename.endswith(".parquet"):
-            return pd.read_parquet(s3_path)
-        else:
-            return pd.read_csv(s3_path)
+        try:
+            if filename.endswith(".parquet"):
+                with fs.open(s3_path, "rb") as f:
+                    df = pd.read_parquet(f)
+            else:
+                with fs.open(s3_path, "rb") as f:
+                    df = pd.read_csv(f)
+
+            logger.info(f"Successfully loaded {len(df)} rows from S3")
+            return df
+        except Exception as e:
+            logger.error(f"Error loading from S3: {e}")
+            raise
 
     def load_subramos(self, force_reload: bool = False) -> pd.DataFrame:
         """Load subramos historico dataset."""
@@ -133,3 +171,23 @@ def get_data_loader() -> DataLoader:
     if _data_loader is None:
         _data_loader = DataLoader()
     return _data_loader
+
+
+def preload_data() -> None:
+    """Preload all data into memory at startup for faster first requests."""
+    logger.info("Starting data preload...")
+    loader = get_data_loader()
+
+    try:
+        # Load main dataset
+        df = loader.load_subramos()
+        logger.info(f"Preloaded subramos: {len(df)} rows")
+
+        # Optionally load otros conceptos
+        # otros_df = loader.load_otros_conceptos()
+        # logger.info(f"Preloaded otros_conceptos: {len(otros_df)} rows")
+
+        logger.info("Data preload completed successfully")
+    except Exception as e:
+        logger.error(f"Error during data preload: {e}")
+        raise

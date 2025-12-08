@@ -4,80 +4,65 @@ Interactive dashboard for visualizing Argentine insurance market metrics based o
 
 ## Architecture Overview
 
-This project implements **two approaches** for the same dashboard:
+| Component | Description | Port |
+|-----------|-------------|------|
+| **React Frontend** | Modern React + TypeScript dashboard | 80 (via Docker) |
+| **FastAPI Backend** | RESTful API for data access | 8000 |
+| **Dash (Testing)** | Legacy Plotly Dash for quick testing | 8051 |
 
-| Approach | Description | Port | Entry Point |
-|----------|-------------|------|-------------|
-| **Direct Data** | Plotly Dash app with direct data access | 8050 | `app.py` |
-| **API-Based** | Plotly Dash frontend + FastAPI backend | 8051 + 8000 | `app_api.py` + `backend/` |
-
-### Why Two Approaches?
-
-1. **Direct Data (`app.py`)**: Simple, monolithic approach ideal for prototypes and small teams
-2. **API-Based (`app_api.py` + FastAPI)**: Decoupled architecture that enables:
-   - Independent scaling of frontend and backend
-   - Future migration to React/Vue/other frontends
-   - API reuse across multiple applications
-   - Better separation of concerns
+### Architecture Benefits
+- **Decoupled**: Frontend and backend scale independently
+- **Modern Stack**: React + TypeScript + TailwindCSS + Nivo charts
+- **Dockerized**: Single `docker-compose up` to run everything
+- **API-First**: Backend reusable across multiple applications
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Docker (Recommended)
 
+```bash
+# Start everything with one command
+docker-compose up
+
+# Access the dashboard
+open http://localhost
+```
+
+### Option 2: Development Mode
+
+**Prerequisites:**
 - Python 3.12+
+- Node.js 20+
 - [uv](https://github.com/astral-sh/uv) package manager
 
-### Installation
-
+**Backend:**
 ```bash
-# Clone and navigate to the project
-cd webapp_visualization
-
-# Install dependencies (uv handles virtual environment automatically)
-uv sync
-
-# For backend dependencies
-cd backend && uv sync && cd ..
-```
-
-### Running the Applications
-
-#### Option 1: Direct Data Approach (Simple)
-
-```bash
-uv run python app.py
-```
-
-Dashboard available at: http://localhost:8050
-
-#### Option 2: API-Based Approach (Decoupled)
-
-**Terminal 1 - Start FastAPI Backend:**
-```bash
-cd backend
+cd backend && uv sync
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-**Terminal 2 - Start Dash Frontend:**
+**Frontend:**
 ```bash
+cd frontend && npm install
+npm run dev
+```
+
+- React Dashboard: http://localhost:5173
+- API Docs: http://localhost:8000/docs
+
+### Option 3: Legacy Dash (Testing Only)
+
+For quick API testing with the legacy Plotly Dash interface:
+
+```bash
+# Terminal 1 - Backend
+cd backend && uv run uvicorn app.main:app --port 8000 --reload
+
+# Terminal 2 - Dash Frontend
 uv run python app_api.py
 ```
 
-- Dashboard: http://localhost:8051
-- API Docs: http://localhost:8000/docs
-- API Health: http://localhost:8000/api/health
-
-#### Option 3: Compare Both (Side by Side)
-
-Run all three commands in separate terminals to compare both approaches:
-
-| Terminal | Command | URL |
-|----------|---------|-----|
-| 1 | `uv run python app.py` | http://localhost:8050 |
-| 2 | `cd backend && uv run uvicorn app.main:app --port 8000 --reload` | http://localhost:8000/docs |
-| 3 | `uv run python app_api.py` | http://localhost:8051 |
-
-Both dashboards (8050 and 8051) should display identical data.
+- Dash Dashboard: http://localhost:8051
 
 ## Dashboard Usage
 
@@ -165,43 +150,36 @@ curl "http://localhost:8000/api/data/kpis?year=2025&quarter=01&view_mode=accumul
 
 ```
 webapp_visualization/
-├── app.py                      # Direct data Dash app (port 8050)
-├── app_api.py                  # API-based Dash app (port 8051)
-├── config.py                   # Shared configuration
-├── pyproject.toml              # Project dependencies
-├── src/
-│   ├── data/
-│   │   └── loader.py           # Data loading utilities
-│   ├── logic/
-│   │   ├── aggregations.py     # Aggregation functions
-│   │   ├── rankings.py         # Entity rankings
-│   │   └── ratios.py           # Ratio calculations
-│   ├── components/
-│   │   ├── filters.py          # Filter components
-│   │   ├── kpi_cards.py        # KPI card components
-│   │   └── charts.py           # Chart configurations
-│   └── layouts/
-│       └── market_overview.py  # Dashboard layout
-├── assets/
-│   └── styles.css              # Custom styles
+├── docker-compose.yml          # Docker orchestration
+├── frontend/                   # React + TypeScript frontend
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── src/
+│   │   ├── components/         # React components
+│   │   │   ├── ui/             # Base UI (shadcn/ui)
+│   │   │   ├── filters/        # Filter components
+│   │   │   ├── charts/         # Nivo chart components
+│   │   │   ├── kpis/           # KPI card components
+│   │   │   └── layout/         # Layout components
+│   │   ├── hooks/              # React Query hooks
+│   │   ├── services/           # API client
+│   │   ├── types/              # TypeScript interfaces
+│   │   └── lib/                # Utilities & constants
+│   └── index.html
+├── backend/                    # FastAPI backend
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── app/
+│       ├── main.py             # FastAPI application
+│       ├── api/routes/         # API endpoints
+│       ├── core/               # Config & data loader
+│       ├── logic/              # Business logic
+│       └── models/             # Pydantic models
 ├── data/                       # Data files (parquet/csv)
-└── backend/                    # FastAPI backend
-    ├── pyproject.toml          # Backend dependencies
-    └── app/
-        ├── main.py             # FastAPI application
-        ├── api/
-        │   ├── routes/
-        │   │   ├── filters.py  # Filter endpoints
-        │   │   └── data.py     # Data endpoints
-        │   └── dependencies.py # Shared dependencies
-        ├── core/
-        │   ├── config.py       # Backend configuration
-        │   └── loader.py       # Data loader
-        ├── logic/
-        │   ├── aggregations.py # Business logic (reused)
-        │   └── rankings.py     # Ranking logic (reused)
-        └── models/
-            └── responses.py    # Pydantic response models
+├── app_api.py                  # Legacy Dash (testing only)
+├── config.py                   # Dash configuration
+└── src/                        # Dash components (legacy)
 ```
 
 ## Data Notes

@@ -1,20 +1,44 @@
+version: '3.8'
+
 services:
-  dashboard:
-    build: .
-    ports:
-      - "8050:8050"
+  backend:
+    build: ./backend
     volumes:
-      # Mount source code for development (hot reload)
-      - ./src:/app/src
-      - ./app.py:/app/app.py
-      - ./config.py:/app/config.py
-      # Mount data directory
-      - ./data:/app/data
+      - ./data:/app/data:ro
+    env_file:
+      - .env
     environment:
-      - DASH_DEBUG=true
-      - DATA_SOURCE=local
-      # Uncomment for S3 access
-      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      # - S3_BUCKET=${S3_BUCKET}
-    command: uv run python app.py
+      # Override these in .env file or set directly
+      # DATA_SOURCE: "local" for local files, "s3" for S3
+      - DATA_SOURCE=${DATA_SOURCE:-local}
+      - LOCAL_DATA_DIR=/app/data
+      - DEBUG=false
+      - CORS_ORIGINS=http://localhost,http://frontend
+      # S3 settings (only needed if DATA_SOURCE=s3)
+      - S3_BUCKET=${S3_BUCKET:-}
+      - S3_PREFIX=${S3_PREFIX:-data/}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

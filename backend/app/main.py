@@ -1,9 +1,31 @@
+from contextlib import asynccontextmanager
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import CORS_ORIGINS, DEBUG
+from app.core.config import CORS_ORIGINS, DEBUG, DATA_SOURCE
+from app.core.loader import preload_data
 from app.api.routes import filters, data
 from app.models.responses import HealthResponse
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Preload data into memory on startup for fast first requests."""
+    logger.info(f"Starting up with DATA_SOURCE={DATA_SOURCE}")
+    try:
+        preload_data()
+        logger.info("Data preload completed successfully")
+    except Exception as e:
+        logger.error(f"Data preload failed: {e}")
+        # Don't crash - data will be loaded on first request
+    yield
+    logger.info("Shutting down...")
+
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -13,6 +35,7 @@ app = FastAPI(
     debug=DEBUG,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure CORS
