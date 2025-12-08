@@ -6,15 +6,16 @@ Interactive dashboard for visualizing Argentine insurance market metrics based o
 
 | Component | Description | Port |
 |-----------|-------------|------|
-| **React Frontend** | Modern React + TypeScript dashboard | 80 (via Docker) |
-| **FastAPI Backend** | RESTful API for data access | 8000 |
+| **React Frontend** | Modern React + TypeScript + Nivo charts | 80 (via Docker) |
+| **FastAPI Backend** | RESTful API with S3/local data support | 8000 |
 | **Dash (Testing)** | Legacy Plotly Dash for quick testing | 8051 |
 
 ### Architecture Benefits
 - **Decoupled**: Frontend and backend scale independently
 - **Modern Stack**: React + TypeScript + TailwindCSS + Nivo charts
-- **Dockerized**: Single `docker-compose up` to run everything
-- **API-First**: Backend reusable across multiple applications
+- **Dockerized**: Single `docker compose up` to run everything
+- **S3 Support**: Load data from local files or AWS S3
+- **Render Ready**: Deploy to Render with `render.yaml` blueprint
 
 ## Quick Start
 
@@ -22,7 +23,7 @@ Interactive dashboard for visualizing Argentine insurance market metrics based o
 
 ```bash
 # Start everything with one command
-docker-compose up
+docker compose up --build
 
 # Access the dashboard
 open http://localhost
@@ -202,22 +203,54 @@ The application looks for data in the following order:
 
 ### Environment Variables
 
-**Dash App:**
-- `DATA_SOURCE`: "local" (default) or "s3"
-- `DASH_DEBUG`: "true" or "false"
-- `DASH_HOST`: Server host (default: "0.0.0.0")
-- `DASH_PORT`: Server port (default: 8050)
+Create a `.env` file in the root directory:
+
+```env
+# Data Source: "local" or "s3"
+DATA_SOURCE=local
+
+# S3 Configuration (only needed if DATA_SOURCE=s3)
+S3_BUCKET=your-bucket-name
+S3_PREFIX=parquet/
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-2
+```
 
 **FastAPI Backend:**
+- `DATA_SOURCE`: "local" (default) or "s3"
 - `API_HOST`: API host (default: "0.0.0.0")
 - `API_PORT`: API port (default: 8000)
 - `DEBUG`: "true" or "false"
 - `CORS_ORIGINS`: Comma-separated allowed origins
 
+**Dash App (Legacy):**
+- `DASH_DEBUG`: "true" or "false"
+- `DASH_HOST`: Server host (default: "0.0.0.0")
+- `DASH_PORT`: Server port (default: 8050)
+
+## Deployment
+
+### Render (Recommended)
+
+The project includes a `render.yaml` blueprint for easy deployment:
+
+1. Push code to GitHub
+2. Go to [render.com](https://render.com) → New → Blueprint
+3. Connect your repo and set root directory to `webapp_visualization`
+4. Set secret environment variables in the dashboard:
+   - `S3_BUCKET`
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+
+Two services will be created:
+- **insurance-api**: FastAPI backend (Docker)
+- **insurance-dashboard**: React frontend (Static Site)
+
 ## Implementation Plan
 
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the detailed roadmap including:
+See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the detailed roadmap:
 - Phase 1: Interactive Dashboard Prototype (Completed)
 - Phase 2A: Backend API Development (Completed)
-- Phase 2B: Additional Dash Dashboards (Planned)
-- Phase 2C: React Frontend Migration (Planned)
+- Phase 2C: React Frontend + Docker (Completed)
+- Deployment: Render Blueprint (Completed)
