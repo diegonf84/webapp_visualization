@@ -38,13 +38,25 @@ export function RamoDonutChart({
     const topItems = sorted.slice(0, CHART_CONFIG.maxCategories);
     const otrosItems = sorted.slice(CHART_CONFIG.maxCategories);
 
-    const pieData: PieDataItem[] = topItems.map((item, index) => ({
-      id: item.name,
-      label: item.name,
-      value: item.value / 1_000_000, // Convert to millions
-      percentage: item.percentage,
-      color: palette[index % palette.length],
-    }));
+    // Build pieData with fixed colors for specific subramos (RC, Cascos)
+    let paletteIndex = 0;
+    const pieData: PieDataItem[] = topItems.map((item) => {
+      let color: string;
+      // Check if this subramo has a fixed color
+      if (hasRamoFilter && CHART_COLORS.fixedSubramos[item.name]) {
+        color = CHART_COLORS.fixedSubramos[item.name];
+      } else {
+        color = palette[paletteIndex % palette.length];
+        paletteIndex++;
+      }
+      return {
+        id: item.name,
+        label: item.name,
+        value: item.value / 1_000_000, // Convert to millions
+        percentage: item.percentage,
+        color,
+      };
+    });
 
     // Aggregate remaining into "Otros Ramos" or "Otros Subramos"
     if (otrosItems.length > 0) {

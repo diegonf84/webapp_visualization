@@ -29,6 +29,13 @@ export const CHART_COLORS = {
     '#e11d48', // Rose
   ],
 
+  // Fixed colors for specific subramos that appear across multiple ramos
+  // These should be consistent regardless of which ramo is selected
+  fixedSubramos: {
+    'RC': '#d946ef',      // Fuchsia/Magenta - distinct from other colors
+    'Cascos': '#0d9488',  // Dark Teal - distinct from other colors
+  } as Record<string, string>,
+
   // Otros category - always last (black for clear distinction)
   otros: '#1e1e1e',
 } as const;
@@ -44,7 +51,7 @@ export const QUARTER_LABELS: Record<string, { short: string; long: string; fisca
 // View mode options
 export const VIEW_MODES = {
   accumulated: { label: 'Acumulado', description: 'Datos acumulados desde inicio del ejercicio' },
-  current: { label: 'Corriente', description: 'Datos del período actual' },
+  current: { label: 'Trimestral', description: 'Datos del período actual' },
 } as const;
 
 // Top N options

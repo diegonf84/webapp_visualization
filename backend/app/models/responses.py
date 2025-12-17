@@ -56,6 +56,62 @@ class DistributionResponse(BaseModel):
     total: float = Field(description="Total value")
 
 
+# Company list response (for selection page)
+class CompanyListItem(BaseModel):
+    """Company item for selection list."""
+    cod_cia: str = Field(description="Company code")
+    nombre_corto: str = Field(description="Company short name")
+    tipo_cia: str = Field(description="Company type (Generales, Vida, etc.)")
+    primas_emitidas: float = Field(description="Total issued premiums (latest period)")
+    ramos_count: int = Field(description="Number of ramos the company operates in")
+
+
+class CompanyListResponse(BaseModel):
+    """List of companies for selection."""
+    companies: List[CompanyListItem]
+    total: int = Field(description="Total number of companies")
+
+
+class RamoBreakdownItem(BaseModel):
+    """Single ramo in portfolio breakdown."""
+    ramo: str = Field(description="Ramo name")
+    primas: float = Field(description="Issued premiums")
+    percentage: float = Field(description="Percentage of total")
+
+
+class CompanyProfileResponse(BaseModel):
+    """Single company profile with KPIs from latest period."""
+    cod_cia: str = Field(description="Company code")
+    nombre_corto: str = Field(description="Company short name")
+    tipo_cia: str = Field(description="Company type")
+    periodo: str = Field(description="Period of the data (YYYYQQ)")
+    ramos_count: int = Field(description="Number of ramos")
+    # Ranking position
+    ranking_position: int = Field(description="Company ranking by primas emitidas")
+    total_companies: int = Field(description="Total number of companies in ranking")
+    # Accumulated metrics
+    primas_emitidas: float = Field(description="Issued premiums (accumulated)")
+    primas_devengadas: float = Field(description="Earned premiums (accumulated)")
+    siniestros_devengados: float = Field(description="Incurred claims (accumulated)")
+    gastos_devengados: float = Field(description="Incurred expenses (accumulated)")
+    # Results from otros_conceptos
+    resultado_tecnico: float = Field(description="Technical result")
+    resultado_financiero: float = Field(description="Financial result")
+    resultado_final: float = Field(description="Final result (tecnico + financiero)")
+    # YoY variations (None if not calculable - new company, zero division, >1000%)
+    yoy_primas_emitidas: Optional[float] = Field(None, description="YoY variation primas emitidas (%)")
+    yoy_resultado_tecnico: Optional[float] = Field(None, description="YoY variation resultado tecnico (%)")
+    yoy_resultado_financiero: Optional[float] = Field(None, description="YoY variation resultado financiero (%)")
+    yoy_resultado_final: Optional[float] = Field(None, description="YoY variation resultado final (%)")
+    # Current period metrics (for monthly average = divide by 3)
+    primas_emitidas_current: float = Field(description="Issued premiums (current quarter)")
+    primas_devengadas_current: float = Field(description="Earned premiums (current quarter)")
+    siniestros_devengados_current: float = Field(description="Incurred claims (current quarter)")
+    gastos_devengados_current: float = Field(description="Incurred expenses (current quarter)")
+    # Top 5 ramos
+    top_ramos: List[RamoBreakdownItem] = Field(description="Top 5 ramos by primas")
+
+
 # Health check
 class HealthResponse(BaseModel):
     """Health check response."""

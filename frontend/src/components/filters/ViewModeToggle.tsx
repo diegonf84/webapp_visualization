@@ -35,7 +35,7 @@ export function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
         )}
       >
         <CalendarDays className="h-4 w-4" />
-        <span className="hidden sm:inline">Corriente</span>
+        <span className="hidden sm:inline">Trimestral</span>
       </button>
     </div>
   );

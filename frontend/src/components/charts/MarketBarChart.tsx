@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TopNSelector } from '@/components/filters/TopNSelector';
@@ -19,6 +19,20 @@ interface BarDataItem {
   [key: string]: string | number;
 }
 
+// Hook to detect mobile screen
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < breakpoint);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
 export function MarketBarChart({
   data,
   isLoading,
@@ -26,6 +40,8 @@ export function MarketBarChart({
   topN,
   onTopNChange,
 }: MarketBarChartProps) {
+  const isMobile = useIsMobile();
+
   // Transform data for Nivo stacked bar chart
   const { chartData, keys, colors } = useMemo(() => {
     if (!data || data.length === 0) {
@@ -80,7 +96,7 @@ export function MarketBarChart({
     // Build chart data
     const chartData: BarDataItem[] = companyTotals.map(({ company }) => {
       const categories = companyMap.get(company)!;
-      const item: BarDataItem = { company: truncate(company, 14) };
+      const item: BarDataItem = { company: truncate(company, isMobile ? 12 : 14) };
 
       sortedCategories.forEach((category) => {
         item[category] = (categories.get(category) || 0) / 1_000_000; // Convert to millions
@@ -113,8 +129,15 @@ export function MarketBarChart({
     // This must match the donut chart's color assignment
     const palette = hasRamoFilter ? CHART_COLORS.subramos : CHART_COLORS.ramos;
     const colors: Record<string, string> = {};
-    sortedCategories.forEach((category, index) => {
-      colors[category] = palette[index % palette.length];
+    let paletteIndex = 0;
+    sortedCategories.forEach((category) => {
+      // Check if this subramo has a fixed color (RC, Cascos)
+      if (hasRamoFilter && CHART_COLORS.fixedSubramos[category]) {
+        colors[category] = CHART_COLORS.fixedSubramos[category];
+      } else {
+        colors[category] = palette[paletteIndex % palette.length];
+        paletteIndex++;
+      }
     });
 
     // Build keys (categories) for the chart - reversed so biggest shows first in legend
@@ -125,7 +148,90 @@ export function MarketBarChart({
     }
 
     return { chartData, keys, colors };
-  }, [data, hasRamoFilter]);
+  }, [data, hasRamoFilter, isMobile]);
+
+  // Responsive chart configuration
+  const chartConfig = useMemo(() => {
+    if (isMobile) {
+      return {
+        layout: 'horizontal' as const,
+        margin: { top: 10, right: 20, bottom: 60, left: 90 },
+        height: Math.max(400, chartData.length * 35),
+        axisBottom: {
+          tickSize: 0,
+          tickPadding: 8,
+          tickRotation: 0,
+          legend: 'Millones $',
+          legendPosition: 'middle' as const,
+          legendOffset: 45,
+          format: (v: number) => `${v.toLocaleString('es-AR')}`,
+        },
+        axisLeft: {
+          tickSize: 0,
+          tickPadding: 8,
+          tickRotation: 0,
+          truncateTickAt: 12,
+        },
+        legends: [
+          {
+            dataFrom: 'keys' as const,
+            anchor: 'bottom' as const,
+            direction: 'row' as const,
+            justify: false,
+            translateX: 0,
+            translateY: 55,
+            itemsSpacing: 4,
+            itemWidth: 70,
+            itemHeight: 14,
+            itemDirection: 'left-to-right' as const,
+            itemOpacity: 1,
+            symbolSize: 8,
+            symbolShape: 'circle' as const,
+          },
+        ],
+      };
+    }
+
+    return {
+      layout: 'vertical' as const,
+      margin: { top: 10, right: 150, bottom: 100, left: 70 },
+      height: 480,
+      axisBottom: {
+        tickSize: 0,
+        tickPadding: 10,
+        tickRotation: -45,
+        legendPosition: 'middle' as const,
+        legendOffset: 60,
+        truncateTickAt: 0,
+      },
+      axisLeft: {
+        tickSize: 0,
+        tickPadding: 8,
+        tickRotation: 0,
+        legend: 'Millones $',
+        legendPosition: 'middle' as const,
+        legendOffset: -60,
+        format: (v: number) => `${v.toLocaleString('es-AR')}`,
+      },
+      legends: [
+        {
+          dataFrom: 'keys' as const,
+          anchor: 'right' as const,
+          direction: 'column' as const,
+          justify: false,
+          translateX: 145,
+          translateY: 0,
+          itemsSpacing: 2,
+          itemWidth: 130,
+          itemHeight: 18,
+          itemDirection: 'left-to-right' as const,
+          itemOpacity: 1,
+          symbolSize: 10,
+          symbolShape: 'circle' as const,
+        },
+      ],
+    };
+  }, [isMobile, chartData.length]);
 
   return (
     <Card className="h-full">
@@ -137,7 +243,7 @@ export function MarketBarChart({
         </div>
       </CardHeader>
       <CardContent className="p-0 overflow-visible">
-        <div className="h-[480px] px-2 pt-4 pb-2">
+        <div style={{ height: chartConfig.height }} className="px-2 pt-4 pb-2">
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
@@ -151,7 +257,8 @@ export function MarketBarChart({
               data={chartData}
               keys={keys}
               indexBy="company"
-              margin={{ top: 10, right: 150, bottom: 100, left: 70 }}
+              layout={chartConfig.layout}
+              margin={chartConfig.margin}
               padding={0.3}
               valueScale={{ type: 'linear' }}
               indexScale={{ type: 'band', round: true }}
@@ -161,34 +268,19 @@ export function MarketBarChart({
               enableLabel={false}
               axisTop={null}
               axisRight={null}
-              axisBottom={{
-                tickSize: 0,
-                tickPadding: 10,
-                tickRotation: -45,
-                legendPosition: 'middle',
-                legendOffset: 60,
-                truncateTickAt: 0,
-              }}
-              axisLeft={{
-                tickSize: 0,
-                tickPadding: 8,
-                tickRotation: 0,
-                legend: 'Millones $',
-                legendPosition: 'middle',
-                legendOffset: -60,
-                format: (v) => `${v.toLocaleString('es-AR')}`,
-              }}
+              axisBottom={chartConfig.axisBottom}
+              axisLeft={chartConfig.axisLeft}
               theme={{
                 axis: {
                   ticks: {
                     text: {
-                      fontSize: 11,
+                      fontSize: isMobile ? 9 : 11,
                       fill: '#64748b',
                     },
                   },
                   legend: {
                     text: {
-                      fontSize: 12,
+                      fontSize: isMobile ? 10 : 12,
                       fill: '#475569',
                       fontWeight: 500,
                     },
@@ -202,28 +294,12 @@ export function MarketBarChart({
                 },
                 legends: {
                   text: {
-                    fontSize: 11,
+                    fontSize: isMobile ? 8 : 11,
                     fill: '#475569',
                   },
                 },
               }}
-              legends={[
-                {
-                  dataFrom: 'keys',
-                  anchor: 'right',
-                  direction: 'column',
-                  justify: false,
-                  translateX: 145,
-                  translateY: 0,
-                  itemsSpacing: 2,
-                  itemWidth: 130,
-                  itemHeight: 18,
-                  itemDirection: 'left-to-right',
-                  itemOpacity: 1,
-                  symbolSize: 10,
-                  symbolShape: 'circle',
-                },
-              ]}
+              legends={chartConfig.legends}
               tooltip={({ id, value, indexValue, color }) => (
                 <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-sm">
                   <div className="font-semibold mb-1">{indexValue}</div>

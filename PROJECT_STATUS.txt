@@ -1,0 +1,348 @@
+================================================================================
+ARGENTINE INSURANCE MARKET DASHBOARD - PROJECT STATUS
+================================================================================
+Last Updated: December 2024
+Current Phase: Company Deep-Dive Dashboard - Phase 3 (Resumen Tab) ENHANCED
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+MAIN IDEA:
+A web dashboard to visualize and analyze the Argentine insurance market data
+from the Superintendencia de Seguros de la Nacion (SSN). The dashboard allows
+users to explore market trends, compare companies, and analyze individual
+company performance.
+
+TARGET USERS:
+- Insurance industry analysts
+- Company executives
+- Regulatory researchers
+- Financial analysts
+
+DATA SOURCES:
+- subramos_historico.csv: Premium, claims, expenses by company/ramo/subramo
+- otros_conceptos_historico.csv: Investments, patrimony, balance sheet items
+- Data is quarterly (Argentine fiscal calendar: Q1=Mar, Q2=Jun, Q3=Sep, Q4=Dec)
+
+================================================================================
+2. ARCHITECTURE
+================================================================================
+
+TECH STACK:
+- Frontend: React 18 + TypeScript + Vite
+- Backend: Python FastAPI
+- Charts: Nivo (@nivo/bar, @nivo/pie)
+- Styling: Tailwind CSS + shadcn/ui-style components
+- State: React Query (TanStack Query) for data fetching
+- Routing: React Router v6
+- Deployment: Docker Compose (nginx + backend + frontend)
+
+PROJECT STRUCTURE:
+/webapp_visualization
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── routes/
+│   │   │   │   ├── data.py         # Main data endpoints
+│   │   │   │   └── filters.py      # Filter options endpoint
+│   │   │   └── dependencies.py     # FilterParams, get_loader
+│   │   ├── core/
+│   │   │   ├── config.py           # Settings
+│   │   │   └── loader.py           # DataLoader singleton
+│   │   ├── logic/
+│   │   │   ├── aggregations.py     # Data aggregation functions
+│   │   │   └── rankings.py         # Top-N logic
+│   │   ├── models/
+│   │   │   └── responses.py        # Pydantic response models
+│   │   └── main.py                 # FastAPI app
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── charts/             # MarketBarChart, RamoDonutChart
+│   │   │   ├── filters/            # FilterBar, TopNSelector
+│   │   │   ├── kpis/               # KPICard, KPIRow
+│   │   │   ├── layout/             # Sidebar, MainLayout, Footer
+│   │   │   └── ui/                 # Badge, Button, Card (shadcn-style)
+│   │   ├── hooks/                  # useKPIs, useCompanyProfile, etc.
+│   │   ├── lib/
+│   │   │   ├── constants.ts        # Colors, thresholds, labels
+│   │   │   └── utils.ts            # formatCurrency, cn(), etc.
+│   │   ├── pages/
+│   │   │   ├── MarketOverview.tsx  # Main market dashboard
+│   │   │   ├── CompanySelect.tsx   # Company selection page
+│   │   │   ├── CompanyProfile.tsx  # Company deep-dive (tabs)
+│   │   │   └── Comparison.tsx      # Multi-company comparison (placeholder)
+│   │   ├── services/
+│   │   │   └── api.ts              # Axios client, API functions
+│   │   └── types/
+│   │       └── api.ts              # TypeScript interfaces
+│   └── package.json
+├── data/                           # CSV data files
+├── docker-compose.yml
+├── Dockerfile.backend
+├── Dockerfile.frontend
+└── nginx.conf
+
+================================================================================
+3. API ENDPOINTS
+================================================================================
+
+FILTERS:
+  GET /api/filters                  → years, quarters, ramos, companies
+
+MARKET DATA:
+  GET /api/data/kpis                → Market-wide KPIs with filters
+  GET /api/data/companies/ranking   → Top N companies by primas
+  GET /api/data/distribution/ramos  → Distribution by ramo
+  GET /api/data/distribution/subramos → Distribution by subramo
+
+COMPANY DATA:
+  GET /api/data/companies           → List all companies (for selection)
+  GET /api/data/companies/{cod_cia} → Single company profile with:
+      - Accumulated metrics (primas, siniestros, gastos)
+      - Current quarter metrics (*_current fields)
+      - Results from otros_conceptos (resultado_tecnico, resultado_financiero)
+      - Ranking position (by primas emitidas)
+      - YoY variations for key metrics
+      - Top 5 ramos breakdown
+
+================================================================================
+4. DASHBOARDS & CURRENT STATUS
+================================================================================
+
+DASHBOARD 1: MARKET OVERVIEW (/mercado) ............................ [COMPLETE]
+  - KPI row: 6 cards (entities, primas, devengadas, gastos, siniestros, resultado)
+  - Bar chart: Top N companies by primas (stacked by ramo/subramo)
+  - Donut chart: Distribution by ramo or subramo
+  - Filters: Year, Quarter, Ramo, View Mode (accumulated/current), Top N
+
+DASHBOARD 2: COMPANY DEEP-DIVE (/compania/:codCia) ................. [IN PROGRESS]
+
+  Phase 1: Foundation (Routing + Sidebar) .......................... [COMPLETE]
+    - Collapsible sidebar with hover-to-expand (icons only by default)
+    - React Router navigation
+    - MainLayout with sidebar + content area
+
+  Phase 2: Company Selection (/compania) ........................... [COMPLETE]
+    - Searchable dropdown (not 190 cards - simplified UX)
+    - Shows top 10 companies by default
+    - Filter as you type
+    - Navigate to profile on selection
+
+  Phase 3: Resumen Tab ............................................. [COMPLETE - ENHANCED]
+
+    Resume Card Header:
+      - Dark context bar at top with:
+        - Period formatted (e.g., "Septiembre 2025") + "Acumulado" badge
+        - Ranking position with trophy icon (e.g., "#14 de 190 en produccion")
+      - Company name, tipo_cia badge, cod_cia
+      - Primas Emitidas, Ramos count, Siniestralidad %, Gastos %, Resultado Tecnico
+      - Top 5 Ramos as colored inline badges
+
+    Resumen Tab Content (3 sections):
+      1. Resultados del Ejercicio: 4 KPI cards with YoY variation
+         - Primas Emitidas + YoY %
+         - Resultado Tecnico + YoY % (from otros_conceptos_historico)
+         - Resultado Financiero + YoY % (from otros_conceptos_historico)
+         - Resultado Final (tecnico + financiero) + YoY %
+         - YoY compares same quarter previous year
+         - Edge cases handled: N/A for new companies, zero division, >1000% variation
+
+      2. Ratios Clave: 3 ratio cards with colored badges
+         - Siniestralidad: <65% green, 65-80% yellow, >80% red
+         - Gastos %: <25% green, 25-35% yellow, >35% red
+         - Ratio Combinado: <95% green, 95-105% yellow, >105% red
+
+      3. Composicion de Cartera: Horizontal bar chart (Top 5 ramos)
+
+  Phase 4: Operaciones Tab ......................................... [PENDING]
+    - Production trends (primas over time)
+    - Siniestralidad evolution
+    - Expense breakdown donut
+    - Breakdown by ramo table
+
+  Phase 5: Inversiones Tab ......................................... [PENDING]
+    - Patrimonio neto evolution
+    - Asset composition donut
+    - Coverage ratio indicator
+    - (Requires otros_conceptos_historico data integration)
+
+  Phase 6: Comparacion Tab ......................................... [PENDING]
+    - Market position (ranking)
+    - Radar chart vs peers
+    - Peer comparison table
+
+DASHBOARD 3: COMPARISON (/comparar) ................................ [PLACEHOLDER]
+  - Multi-company comparison (future)
+
+================================================================================
+5. KEY DATA STRUCTURES
+================================================================================
+
+FRONTEND TYPES (frontend/src/types/api.ts):
+
+  CompanyProfileResponse {
+    cod_cia: string
+    nombre_corto: string
+    tipo_cia: string                    // "Generales", "Vida", "ART", "Retiro"
+    periodo: string                     // "202503" format
+    ramos_count: number
+
+    // Ranking position
+    ranking_position: number
+    total_companies: number
+
+    // Accumulated (year-to-date)
+    primas_emitidas: number
+    primas_devengadas: number
+    siniestros_devengados: number
+    gastos_devengados: number
+
+    // Results from otros_conceptos_historico
+    resultado_tecnico: number
+    resultado_financiero: number
+    resultado_final: number             // tecnico + financiero
+
+    // YoY variations (null if not calculable)
+    yoy_primas_emitidas: number | null
+    yoy_resultado_tecnico: number | null
+    yoy_resultado_financiero: number | null
+    yoy_resultado_final: number | null
+
+    // Current quarter (divide by 3 for monthly average)
+    primas_emitidas_current: number
+    primas_devengadas_current: number
+    siniestros_devengados_current: number
+    gastos_devengados_current: number
+
+    // Portfolio breakdown
+    top_ramos: RamoBreakdownItem[]
+  }
+
+  RamoBreakdownItem {
+    ramo: string
+    primas: number
+    percentage: number
+  }
+
+BACKEND MODELS (backend/app/models/responses.py):
+  - Mirror the frontend types exactly
+  - Pydantic models for validation
+
+================================================================================
+6. DESIGN DECISIONS & PATTERNS
+================================================================================
+
+UI PATTERNS:
+  - Sidebar: Icons only (w-16), expands on hover (w-56)
+  - KPI Cards: Color-coded left borders (blue, emerald, amber, rose, purple)
+  - Badges: CVA variants (success=green, warning=amber, destructive=red)
+  - Charts: Nivo with consistent color palettes (CHART_COLORS in constants.ts)
+  - Responsive: Mobile-first, grid breakpoints (sm, md, lg, xl)
+
+DATA PATTERNS:
+  - React Query for all API calls (automatic caching, loading states)
+  - View modes: "Acumulado" vs "Trimestral" (quarterly data)
+  - Top N filtering for bar charts
+  - Dynamic switching between ramos/subramos based on filter selection
+  - Fixed colors for RC and Cascos subramos (consistent across ramos)
+
+RATIO THRESHOLDS (for color indicators):
+  - Siniestralidad: good < 65%, warning < 80%, bad >= 80%
+  - Gastos %: good < 25%, warning < 35%, bad >= 35%
+  - Combined Ratio: good < 95%, warning < 105%, bad >= 105%
+
+YOY CALCULATION LOGIC:
+  - Compares same quarter previous year (e.g., 202503 vs 202403)
+  - Returns null (shows "N/A") if:
+    - Previous value is 0 (zero division)
+    - No previous year data (new company)
+    - Variation exceeds ±1000% (anomaly)
+  - Green arrow up for positive, red arrow down for negative
+
+================================================================================
+7. TESTING WITH DOCKER
+================================================================================
+
+To run the project:
+
+  cd /Users/diegofrigerio/Personal/repositorios/insurance_full_proyect/webapp_visualization
+  docker-compose up --build
+
+Access at: http://localhost:80
+
+Navigation:
+  - / or /mercado → Market Overview
+  - /compania → Company Selection
+  - /compania/:codCia → Company Profile (e.g., /compania/0001)
+
+================================================================================
+8. NEXT STEPS (PRIORITY ORDER)
+================================================================================
+
+IMMEDIATE:
+  1. Test Company Profile Resumen Tab with Docker
+  2. Fix any issues found during testing
+
+PHASE 4 - OPERACIONES TAB:
+  1. Backend: Add endpoint for historical data by company
+  2. Frontend: Line charts for primas/siniestralidad trends
+  3. Frontend: Expense breakdown donut
+  4. Frontend: Table with breakdown by ramo
+
+PHASE 5 - INVERSIONES TAB:
+  1. Backend: Load otros_conceptos_historico data
+  2. Backend: Add investment endpoints
+  3. Frontend: Asset composition donut
+  4. Frontend: Patrimonio trend
+
+PHASE 6 - COMPARACION TAB:
+  1. Backend: Peer comparison endpoint
+  2. Frontend: Radar chart
+  3. Frontend: Peer ranking table
+
+FUTURE IDEAS (from DASHBOARD_IDEAS.md):
+  - Peer Comparison Dashboard
+  - Financial Ratios Deep-Dive
+  - Claims Analysis (juicios, mediaciones)
+  - Time Series Trends
+  - Market Share Evolution
+  - Reinsurance Analysis
+
+================================================================================
+9. IMPORTANT FILES TO READ
+================================================================================
+
+For understanding the project quickly:
+
+BACKEND:
+  - backend/app/api/routes/data.py      → All data endpoints
+  - backend/app/models/responses.py     → Response models
+  - backend/app/core/loader.py          → Data loading logic
+
+FRONTEND:
+  - frontend/src/pages/CompanyProfile.tsx → Company deep-dive (main work area)
+  - frontend/src/types/api.ts           → All TypeScript interfaces
+  - frontend/src/lib/constants.ts       → Colors, thresholds, labels
+  - frontend/src/components/kpis/       → KPI card components
+
+PLANNING:
+  - COMPANY_DEEPDIVE_PLAN.md            → Full architecture plan
+  - COMPANY_PROFILE_DESIGN.md           → Detailed UI design specs
+  - DASHBOARD_IDEAS.md                  → Future dashboard ideas
+
+================================================================================
+10. KNOWN ISSUES & NOTES
+================================================================================
+
+- Mobile responsiveness: Bar chart switches to horizontal on mobile
+- The sidebar hover behavior may need refinement (CSS transitions)
+- Some companies may have missing data for certain periods
+- The "current" columns assume quarterly data (divide by 3 for monthly)
+- YoY shows "N/A" for new companies or when previous year data is missing
+
+================================================================================
+END OF PROJECT STATUS
+================================================================================

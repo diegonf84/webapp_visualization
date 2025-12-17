@@ -59,3 +59,62 @@ export interface FilterParams {
   view_mode?: 'accumulated' | 'current';
   top_n?: number;
 }
+
+// Company list (for selection page)
+export interface CompanyListItem {
+  cod_cia: string;
+  nombre_corto: string;
+  tipo_cia: string;
+  primas_emitidas: number;
+  ramos_count: number;
+}
+
+export interface CompanyListResponse {
+  companies: CompanyListItem[];
+  total: number;
+}
+
+export interface CompanyListParams {
+  tipo_cia?: string;
+  search?: string;
+}
+
+// Ramo breakdown item (for company portfolio)
+export interface RamoBreakdownItem {
+  ramo: string;
+  primas: number;
+  percentage: number;
+}
+
+// Company profile (single company)
+export interface CompanyProfileResponse {
+  cod_cia: string;
+  nombre_corto: string;
+  tipo_cia: string;
+  periodo: string;
+  ramos_count: number;
+  // Ranking position
+  ranking_position: number;
+  total_companies: number;
+  // Accumulated metrics
+  primas_emitidas: number;
+  primas_devengadas: number;
+  siniestros_devengados: number;
+  gastos_devengados: number;
+  // Results from otros_conceptos
+  resultado_tecnico: number;
+  resultado_financiero: number;
+  resultado_final: number;
+  // YoY variations (null if not calculable - new company, zero division, >1000%)
+  yoy_primas_emitidas: number | null;
+  yoy_resultado_tecnico: number | null;
+  yoy_resultado_financiero: number | null;
+  yoy_resultado_final: number | null;
+  // Current period metrics (for monthly average = divide by 3)
+  primas_emitidas_current: number;
+  primas_devengadas_current: number;
+  siniestros_devengados_current: number;
+  gastos_devengados_current: number;
+  // Top 5 ramos
+  top_ramos: RamoBreakdownItem[];
+}

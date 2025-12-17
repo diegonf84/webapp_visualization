@@ -6,6 +6,9 @@ import type {
   DistributionResponse,
   FilterParams,
   HealthResponse,
+  CompanyListResponse,
+  CompanyListParams,
+  CompanyProfileResponse,
 } from '@/types/api';
 
 // API base URL:
@@ -60,6 +63,16 @@ export async function getRamosDistribution(params: FilterParams): Promise<Distri
 
 export async function getSubramosDistribution(params: FilterParams): Promise<DistributionResponse> {
   const { data } = await api.get<DistributionResponse>('/data/distribution/subramos', { params });
+  return data;
+}
+
+export async function getCompanies(params?: CompanyListParams): Promise<CompanyListResponse> {
+  const { data } = await api.get<CompanyListResponse>('/data/companies', { params });
+  return data;
+}
+
+export async function getCompanyProfile(codCia: string): Promise<CompanyProfileResponse> {
+  const { data } = await api.get<CompanyProfileResponse>(`/data/companies/${codCia}`);
   return data;
 }
 
