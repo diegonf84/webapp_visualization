@@ -84,6 +84,12 @@ export interface RamoBreakdownItem {
   ramo: string;
   primas: number;
   percentage: number;
+  primas_devengadas: number;
+  siniestros_devengados: number;
+  gastos_devengados: number;
+  siniestralidad: number;
+  gastos_percent: number;
+  combined_ratio: number;
 }
 
 // Company profile (single company)
@@ -117,4 +123,9 @@ export interface CompanyProfileResponse {
   gastos_devengados_current: number;
   // Top 5 ramos
   top_ramos: RamoBreakdownItem[];
+  // Market averages (same tipo_cia)
+  market_siniestralidad: number;
+  market_gastos_percent: number;
+  market_combined_ratio: number;
+  market_companies_count: number;
 }

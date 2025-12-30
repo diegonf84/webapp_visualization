@@ -392,24 +392,35 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 ## 6. Implementation Phases
 
-### Phase 1: Foundation (Routing + Sidebar)
-- [ ] Install react-router-dom
-- [ ] Create Sidebar component
-- [ ] Create MainLayout with sidebar + content area
-- [ ] Refactor current App.tsx content into MarketOverview page
-- [ ] Basic route navigation working
+### Phase 1: Foundation (Routing + Sidebar) ✅ COMPLETED
+- [x] Install react-router-dom
+- [x] Create navigation structure
+- [x] Refactor current App.tsx content into MarketOverview page
+- [x] Basic route navigation working
 
-### Phase 2: Company Selection Page
-- [ ] Create CompanySelect page
-- [ ] Add `GET /api/companies` endpoint
-- [ ] Company cards grid with search/filter
-- [ ] Navigation to company profile
+### Phase 2: Company Selection Page ✅ COMPLETED
+- [x] Create CompanySelect page
+- [x] Add `GET /api/data/companies/list` endpoint
+- [x] Company cards grid with search/filter
+- [x] Filter by tipo_cia
+- [x] Navigation to company profile
 
-### Phase 3: Company Deep-Dive - Resumen Tab
-- [ ] Create CompanyProfile page with 4-tab structure
-- [ ] Add company-specific API endpoints (kpis, ratios)
-- [ ] Implement OverviewTab with KPIs, ratios, sparklines
-- [ ] Portfolio snapshot donut
+### Phase 3: Company Deep-Dive - Resumen Tab ✅ COMPLETED
+- [x] Create CompanyProfile page with 4-tab structure
+- [x] Add company-specific API endpoints (`GET /api/data/companies/{cod_cia}`)
+- [x] Implement OverviewTab with KPIs and ratios
+  - [x] Resultados del Ejercicio (Primas, Resultado Técnico, Financiero, Final)
+  - [x] YoY variations with intelligent handling (filters out extremes)
+  - [x] Ratios Clave (Ratio Combinado, Siniestralidad, Gastos %)
+  - [x] Market average comparison (same tipo_cia group)
+  - [x] Negative value handling in calculations
+- [x] Portfolio visualization (treemap instead of donut)
+  - [x] Shows ALL ramos with full metrics (not just top 5)
+  - [x] Box size based on primas_emitidas
+  - [x] Color coded by combined ratio (green ≤ 100%, red > 100%)
+  - [x] Intelligent text wrapping for long ramo names
+  - [x] Dynamic font sizing (10-18px names, 14-24px ratios)
+  - [x] Simplified interactive tooltip
 
 ### Phase 4: Company Deep-Dive - Operaciones Tab
 - [ ] Add historical endpoints (primas, portfolio, expenses)

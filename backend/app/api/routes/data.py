@@ -345,21 +345,76 @@ async def get_company_profile(
     yoy_resultado_financiero = calculate_yoy(resultado_financiero, prev_resultado_financiero)
     yoy_resultado_final = calculate_yoy(resultado_final, prev_resultado_final)
 
-    # Top 5 ramos by primas
+    # All ramos with full metrics for treemap
     ramo_totals = (
-        latest_df.groupby("ramo_nombre_corto")["primas_emitidas"]
-        .sum()
-        .sort_values(ascending=False)
+        latest_df.groupby("ramo_nombre_corto")
+        .agg({
+            "primas_emitidas": "sum",
+            "primas_devengadas": "sum",
+            "siniestros_devengados": "sum",
+            "gastos_devengados": "sum",
+        })
+        .reset_index()
+        .sort_values("primas_emitidas", ascending=False)
     )
-    total_primas = ramo_totals.sum()
-    top_ramos = [
-        RamoBreakdownItem(
-            ramo=ramo,
-            primas=float(primas),
-            percentage=float(primas / total_primas * 100) if total_primas > 0 else 0,
+    total_primas = ramo_totals["primas_emitidas"].sum()
+
+    top_ramos = []
+    for _, row in ramo_totals.iterrows():
+        pd_ramo = row["primas_devengadas"]
+        sd_ramo = row["siniestros_devengados"]
+        gd_ramo = row["gastos_devengados"]
+
+        # Calculate ratios (allow negative, only protect against division by zero)
+        siniestralidad_ramo = (sd_ramo / pd_ramo * 100) if pd_ramo != 0 else 0
+        gastos_pct_ramo = (gd_ramo / pd_ramo * 100) if pd_ramo != 0 else 0
+        combined_ramo = siniestralidad_ramo + gastos_pct_ramo
+
+        top_ramos.append(
+            RamoBreakdownItem(
+                ramo=row["ramo_nombre_corto"],
+                primas=float(row["primas_emitidas"]),
+                percentage=float(row["primas_emitidas"] / total_primas * 100) if total_primas > 0 else 0,
+                primas_devengadas=float(pd_ramo),
+                siniestros_devengados=float(sd_ramo),
+                gastos_devengados=float(gd_ramo),
+                siniestralidad=float(siniestralidad_ramo),
+                gastos_percent=float(gastos_pct_ramo),
+                combined_ratio=float(combined_ramo),
+            )
         )
-        for ramo, primas in ramo_totals.head(5).items()
-    ]
+
+    # Calculate market averages (same tipo_cia)
+    market_df = all_latest[all_latest["tipo_cia"] == tipo_cia]
+    market_by_company = (
+        market_df.groupby("cod_cia")
+        .agg({
+            "primas_devengadas": "sum",
+            "siniestros_devengados": "sum",
+            "gastos_devengados": "sum",
+        })
+        .reset_index()
+    )
+    market_companies_count = len(market_by_company)
+
+    # Calculate ratios per company, then average
+    market_by_company["siniestralidad"] = market_by_company.apply(
+        lambda r: (r["siniestros_devengados"] / r["primas_devengadas"] * 100)
+        if r["primas_devengadas"] > 0 else 0,
+        axis=1
+    )
+    market_by_company["gastos_pct"] = market_by_company.apply(
+        lambda r: (r["gastos_devengados"] / r["primas_devengadas"] * 100)
+        if r["primas_devengadas"] > 0 else 0,
+        axis=1
+    )
+    market_by_company["combined_ratio"] = (
+        market_by_company["siniestralidad"] + market_by_company["gastos_pct"]
+    )
+
+    market_siniestralidad = float(market_by_company["siniestralidad"].mean())
+    market_gastos_percent = float(market_by_company["gastos_pct"].mean())
+    market_combined_ratio = float(market_by_company["combined_ratio"].mean())
 
     return CompanyProfileResponse(
         cod_cia=str(cod_cia),
@@ -385,4 +440,8 @@ async def get_company_profile(
         siniestros_devengados_current=float(siniestros_devengados_current),
         gastos_devengados_current=float(gastos_devengados_current),
         top_ramos=top_ramos,
+        market_siniestralidad=market_siniestralidad,
+        market_gastos_percent=market_gastos_percent,
+        market_combined_ratio=market_combined_ratio,
+        market_companies_count=market_companies_count,
     )

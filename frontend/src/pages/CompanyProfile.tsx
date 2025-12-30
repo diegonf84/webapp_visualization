@@ -18,7 +18,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import { ResponsiveBar } from '@nivo/bar';
+import { ResponsiveTreeMap } from '@nivo/treemap';
 import { Footer } from '@/components/layout/Footer';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -102,11 +102,11 @@ export function CompanyProfile() {
 
   const { data: profile, isLoading, error } = useCompanyProfile(codCia);
 
-  // Calculate derived metrics
-  const siniestralidad = profile && profile.primas_devengadas > 0
+  // Calculate derived metrics (allow negative values, only protect against division by zero)
+  const siniestralidad = profile && profile.primas_devengadas !== 0
     ? (profile.siniestros_devengados / profile.primas_devengadas) * 100
     : 0;
-  const gastosPercent = profile && profile.primas_devengadas > 0
+  const gastosPercent = profile && profile.primas_devengadas !== 0
     ? (profile.gastos_devengados / profile.primas_devengadas) * 100
     : 0;
   const combinedRatio = siniestralidad + gastosPercent;
@@ -121,16 +121,53 @@ export function CompanyProfile() {
     return 'destructive';
   };
 
-  // Prepare bar chart data for portfolio
-  const portfolioChartData = useMemo(() => {
-    if (!profile?.top_ramos) return [];
-    return profile.top_ramos.map((ramo, index) => ({
-      ramo: ramo.ramo,
-      percentage: ramo.percentage,
-      primas: ramo.primas,
-      color: CHART_COLORS.ramos[index % CHART_COLORS.ramos.length],
-    }));
+  // Type for treemap node data
+  interface TreemapNodeData {
+    name: string;
+    value: number;
+    primas: number;
+    percentage: number;
+    combined_ratio: number;
+    siniestralidad: number;
+    gastos_percent: number;
+  }
+
+  // Prepare treemap data for portfolio
+  const treemapData = useMemo(() => {
+    if (!profile?.top_ramos || profile.top_ramos.length === 0) return null;
+
+    // Calculate minimum value for small ramos (ensure visibility)
+    const maxPrimas = Math.max(...profile.top_ramos.map(r => Math.abs(r.primas)));
+    const minVisibleValue = maxPrimas * 0.05; // At least 5% of max for visibility
+
+    return {
+      name: 'portfolio',
+      children: profile.top_ramos.map((ramo): TreemapNodeData => ({
+        name: ramo.ramo,
+        // Use absolute value for size, ensure minimum visibility
+        value: Math.max(Math.abs(ramo.primas), minVisibleValue),
+        primas: ramo.primas,
+        percentage: ramo.percentage,
+        combined_ratio: ramo.combined_ratio,
+        siniestralidad: ramo.siniestralidad,
+        gastos_percent: ramo.gastos_percent,
+      })),
+    };
   }, [profile?.top_ramos]);
+
+  // Format combined ratio for display (cap extreme values)
+  const formatRatio = (ratio: number): string => {
+    if (ratio > 999) return '>999%';
+    if (ratio < -999) return '<-999%';
+    return `${ratio.toFixed(1)}%`;
+  };
+
+  // Get color for treemap tile based on combined ratio
+  const getTreemapColor = (ratio: number): string => {
+    // Distinctive colors - forest green and crimson, different from other UI elements
+    if (ratio <= 100) return '#065f46'; // Deep forest green
+    return '#991b1b'; // Deep crimson red
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -437,14 +474,43 @@ export function CompanyProfile() {
                           <Card>
                             <CardContent className="p-4">
                               <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-slate-600">Ratio Combinado</span>
+                                <Badge variant={getRatioVariant(combinedRatio, { good: 95, warning: 105 })}>
+                                  {combinedRatio.toFixed(1)}%
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-500 mb-2">
+                                Siniestralidad + Gastos (rentable si &lt; 100%)
+                              </p>
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <span className="text-xs text-slate-400">
+                                  Mercado {profile.tipo_cia}
+                                </span>
+                                <span className="text-xs font-medium text-slate-500">
+                                  {profile.market_combined_ratio.toFixed(1)}%
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-medium text-slate-600">Siniestralidad</span>
                                 <Badge variant={getRatioVariant(siniestralidad, { good: 65, warning: 80 })}>
                                   {siniestralidad.toFixed(1)}%
                                 </Badge>
                               </div>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-slate-500 mb-2">
                                 Siniestros / Primas Devengadas
                               </p>
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <span className="text-xs text-slate-400">
+                                  Mercado {profile.tipo_cia}
+                                </span>
+                                <span className="text-xs font-medium text-slate-500">
+                                  {profile.market_siniestralidad.toFixed(1)}%
+                                </span>
+                              </div>
                             </CardContent>
                           </Card>
                           <Card>
@@ -455,83 +521,208 @@ export function CompanyProfile() {
                                   {gastosPercent.toFixed(1)}%
                                 </Badge>
                               </div>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-slate-500 mb-2">
                                 Gastos / Primas Devengadas
                               </p>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-slate-600">Ratio Combinado</span>
-                                <Badge variant={getRatioVariant(combinedRatio, { good: 95, warning: 105 })}>
-                                  {combinedRatio.toFixed(1)}%
-                                </Badge>
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <span className="text-xs text-slate-400">
+                                  Mercado {profile.tipo_cia}
+                                </span>
+                                <span className="text-xs font-medium text-slate-500">
+                                  {profile.market_gastos_percent.toFixed(1)}%
+                                </span>
                               </div>
-                              <p className="text-xs text-slate-500">
-                                Siniestralidad + Gastos (rentable si &lt; 100%)
-                              </p>
                             </CardContent>
                           </Card>
                         </div>
                       </div>
 
-                      {/* Section 3: Portfolio Breakdown */}
+                      {/* Section 3: Portfolio Breakdown - Treemap */}
                       <div>
                         <h3 className="text-lg font-semibold text-slate-900 mb-1">
                           Composicion de Cartera
                         </h3>
                         <p className="text-sm text-slate-500 mb-4">
-                          Distribucion por ramo (Top 5)
+                          Tamano segun primas emitidas • <span className="font-semibold" style={{ color: '#065f46' }}>Verde</span> si RC ≤ 100% • <span className="font-semibold" style={{ color: '#991b1b' }}>Rojo</span> si RC &gt; 100%
                         </p>
                         <Card>
                           <CardContent className="p-4">
-                            {portfolioChartData.length > 0 ? (
-                              <div style={{ height: 280 }}>
-                                <ResponsiveBar
-                                  data={portfolioChartData}
-                                  keys={['percentage']}
-                                  indexBy="ramo"
-                                  layout="horizontal"
-                                  margin={{ top: 10, right: 30, bottom: 40, left: 120 }}
-                                  padding={0.3}
-                                  valueScale={{ type: 'linear' }}
-                                  colors={(bar) => {
-                                    const item = portfolioChartData.find(d => d.ramo === bar.indexValue);
-                                    return item?.color || CHART_COLORS.ramos[0];
+                            {treemapData ? (
+                              <div style={{ height: Math.max(300, profile.top_ramos.length * 40) }}>
+                                <ResponsiveTreeMap
+                                  data={treemapData}
+                                  identity="name"
+                                  value="value"
+                                  tile="squarify"
+                                  leavesOnly={true}
+                                  innerPadding={4}
+                                  outerPadding={4}
+                                  margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+                                  colors={(node) => {
+                                    const data = node.data as unknown as TreemapNodeData;
+                                    return getTreemapColor(data.combined_ratio);
                                   }}
-                                  borderRadius={4}
-                                  enableLabel={true}
-                                  label={d => `${Number(d.value).toFixed(1)}%`}
-                                  labelTextColor="#ffffff"
-                                  axisTop={null}
-                                  axisRight={null}
-                                  axisBottom={{
-                                    tickSize: 0,
-                                    tickPadding: 8,
-                                    legend: 'Porcentaje de Cartera (%)',
-                                    legendPosition: 'middle',
-                                    legendOffset: 30,
-                                  }}
-                                  axisLeft={{
-                                    tickSize: 0,
-                                    tickPadding: 8,
-                                  }}
-                                  enableGridY={false}
-                                  theme={{
-                                    axis: {
-                                      ticks: { text: { fontSize: 11, fill: '#64748b' } },
-                                      legend: { text: { fontSize: 12, fill: '#475569', fontWeight: 500 } },
-                                    },
-                                  }}
-                                  tooltip={({ data }) => (
-                                    <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-sm">
-                                      <div className="font-semibold">{data.ramo}</div>
-                                      <div className="text-slate-300">
-                                        {formatCurrency(data.primas)} ({Number(data.percentage).toFixed(1)}%)
+                                  borderWidth={3}
+                                  borderColor="#f1f5f9"
+                                  enableLabel={false}
+                                  layers={[
+                                    'nodes',
+                                    ({ nodes }) => {
+                                      const maxValue = Math.max(...(treemapData?.children.map(c => c.value) || [1]));
+
+                                      // Helper function to wrap text into multiple lines
+                                      const wrapText = (text: string, maxWidth: number, fontSize: number): string[] => {
+                                        // Approximate character width (0.6 of font size is a good estimate)
+                                        const charWidth = fontSize * 0.6;
+                                        const maxCharsPerLine = Math.floor(maxWidth / charWidth);
+
+                                        if (maxCharsPerLine <= 0 || text.length <= maxCharsPerLine) {
+                                          return [text];
+                                        }
+
+                                        const words = text.split(' ');
+                                        const lines: string[] = [];
+                                        let currentLine = '';
+
+                                        words.forEach(word => {
+                                          const testLine = currentLine ? `${currentLine} ${word}` : word;
+                                          if (testLine.length <= maxCharsPerLine) {
+                                            currentLine = testLine;
+                                          } else {
+                                            if (currentLine) {
+                                              lines.push(currentLine);
+                                            }
+                                            currentLine = word;
+                                          }
+                                        });
+
+                                        if (currentLine) {
+                                          lines.push(currentLine);
+                                        }
+
+                                        return lines.length > 0 ? lines : [text];
+                                      };
+
+                                      return (
+                                        <g>
+                                          {nodes
+                                            .filter(node => node.width > 30 && node.height > 30)
+                                            .map((node) => {
+                                              const data = node.data as unknown as TreemapNodeData;
+                                              const sizeRatio = data.value / maxValue;
+
+                                              // Dynamic font sizes based on box size
+                                              const nameFontSize = Math.max(10, Math.min(18, 10 + (sizeRatio * 8)));
+                                              const ratioFontSize = Math.max(14, Math.min(24, 14 + (sizeRatio * 10)));
+
+                                              // Wrap text with padding (use 85% of width to leave margins)
+                                              const availableWidth = node.width * 0.85;
+                                              const nameLines = wrapText(String(node.id), availableWidth, nameFontSize);
+
+                                              // Calculate vertical spacing
+                                              const lineHeight = nameFontSize * 1.2;
+                                              const totalNameHeight = nameLines.length * lineHeight;
+                                              const nameStartY = -(totalNameHeight / 2) - (ratioFontSize / 2) - 4;
+
+                                              return (
+                                                <g key={node.path} transform={`translate(${node.x + node.width / 2}, ${node.y + node.height / 2})`}>
+                                                  {/* Multi-line ramo name */}
+                                                  <text
+                                                    textAnchor="middle"
+                                                    style={{
+                                                      fill: '#fffbeb',
+                                                      fontSize: `${nameFontSize}px`,
+                                                      fontWeight: 600,
+                                                      filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.4))',
+                                                      pointerEvents: 'none',
+                                                    }}
+                                                  >
+                                                    {nameLines.map((line, index) => (
+                                                      <tspan
+                                                        key={index}
+                                                        x={0}
+                                                        y={nameStartY + (index * lineHeight)}
+                                                        dominantBaseline="central"
+                                                      >
+                                                        {line}
+                                                      </tspan>
+                                                    ))}
+                                                  </text>
+
+                                                  {/* Ratio percentage - positioned below name */}
+                                                  <text
+                                                    textAnchor="middle"
+                                                    dominantBaseline="central"
+                                                    style={{
+                                                      fill: '#fffbeb',
+                                                      fontSize: `${ratioFontSize}px`,
+                                                      fontWeight: 800,
+                                                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
+                                                      pointerEvents: 'none',
+                                                    }}
+                                                    y={nameStartY + totalNameHeight + (ratioFontSize / 2) + 4}
+                                                  >
+                                                    {formatRatio(data.combined_ratio)}
+                                                  </text>
+                                                </g>
+                                              );
+                                            })}
+                                        </g>
+                                      );
+                                    }
+                                  ]}
+                                  tooltip={({ node }) => {
+                                    const data = node.data as unknown as TreemapNodeData;
+                                    const isGood = data.combined_ratio <= 100;
+                                    return (
+                                      <div
+                                        className="px-5 py-4 rounded-2xl shadow-2xl border-2"
+                                        style={{
+                                          background: 'rgba(15, 23, 42, 0.97)',
+                                          backdropFilter: 'blur(12px)',
+                                          borderColor: isGood ? '#065f46' : '#991b1b',
+                                        }}
+                                      >
+                                        <div className="font-bold text-lg mb-3" style={{ color: '#fffbeb' }}>
+                                          {node.id}
+                                        </div>
+                                        <div className="space-y-2.5">
+                                          <div className="flex justify-between items-baseline gap-8">
+                                            <span className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>
+                                              Primas
+                                            </span>
+                                            <span className="font-semibold text-sm" style={{ color: '#fffbeb' }}>
+                                              {formatCurrency(data.primas)}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between items-baseline gap-8">
+                                            <span className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>
+                                              % Cartera
+                                            </span>
+                                            <span className="font-semibold text-sm" style={{ color: '#fffbeb' }}>
+                                              {data.percentage.toFixed(1)}%
+                                            </span>
+                                          </div>
+                                          <div
+                                            className="pt-2.5 mt-1"
+                                            style={{ borderTop: '1px solid rgba(148, 163, 184, 0.3)' }}
+                                          >
+                                            <div className="flex justify-between items-baseline gap-8">
+                                              <span className="text-xs uppercase tracking-wider" style={{ color: '#94a3b8' }}>
+                                                Ratio Combinado
+                                              </span>
+                                              <span
+                                                className="font-bold text-lg"
+                                                style={{ color: isGood ? '#10b981' : '#f87171' }}
+                                              >
+                                                {formatRatio(data.combined_ratio)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    );
+                                  }}
                                   animate={true}
                                 />
                               </div>

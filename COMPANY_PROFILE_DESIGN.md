@@ -81,44 +81,89 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ RATIOS CLAVE (periodo actual)                                              │
+│ RATIOS CLAVE (periodo acumulado)                                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                         │
-│  │Siniestralidad│  │Ratio Gastos│  │Combined Ratio│                        │
-│  │   [GAUGE]   │  │   [GAUGE]   │  │   [GAUGE]    │                        │
-│  │   65.5%     │  │   28.3%     │  │   93.8%      │                        │
-│  │  ● Bueno    │  │  ● Normal   │  │  ● Bueno     │                        │
+│  │Ratio Combinado│ │Siniestralidad│ │Ratio Gastos│                         │
+│  │   93.8%     │  │   65.5%     │  │   28.3%     │                         │
+│  │  ● Bueno    │  │  ● Bueno    │  │  ● Normal   │                         │
+│  ├─────────────┤  ├─────────────┤  ├─────────────┤                         │
+│  │ Mercado     │  │ Mercado     │  │ Mercado     │                         │
+│  │ Generales   │  │ Generales   │  │ Generales   │                         │
+│  │   98.5%     │  │   70.2%     │  │   28.3%     │                         │
 │  └─────────────┘  └─────────────┘  └─────────────┘                         │
 │                                                                             │
 │  Interpretacion:                                                            │
 │  - Combined < 100% = rentable                                              │
 │  - Combined > 100% = perdida tecnica                                       │
+│  - "Mercado" = promedio de companias del mismo tipo (Generales, ART, etc.) │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Gauges/Indicators**:
+**Color Indicators**:
 - Siniestralidad: Green < 65%, Yellow 65-80%, Red > 80%
 - Gastos: Green < 25%, Yellow 25-35%, Red > 35%
 - Combined: Green < 95%, Yellow 95-105%, Red > 105%
 
-### Section C: Portfolio Snapshot (Top 5 Ramos)
+**Market Comparison**:
+- Shows average ratio for companies in same tipo_cia group
+- Helps contextualize company performance vs peers
+- Calculated as mean of individual company ratios (not weighted)
+
+### Section C: Portfolio Breakdown - Treemap Visualization
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ COMPOSICION DEL PORTFOLIO (Top 5 Ramos)                                    │
+│ COMPOSICION DE CARTERA                                                      │
+│ Tamano segun primas emitidas • Verde si RC ≤ 100% • Rojo si RC > 100%      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  [Horizontal Bar Chart]                                                     │
+│  [Treemap Visualization - All Ramos]                                        │
 │                                                                             │
-│  Automotores    ████████████████████████████████  45.2%  │  $XXX M         │
-│  Vida           ████████████████                  25.1%  │  $XXX M         │
-│  Incendio       █████████                         15.3%  │  $XXX M         │
-│  RC             ████                               8.2%  │  $XXX M         │
-│  Otros          ███                                6.2%  │  $XXX M         │
+│  ┌──────────────────────┬────────┬──────────────┬────────┐                 │
+│  │                      │ Robo y │              │Automot.│                 │
+│  │  Combinado Familiar  │Riesgos │Otros Riesgos │ 133.3% │                 │
+│  │      87.5%           │ 99.7%  │   81.8%      │ (RED)  │                 │
+│  │      (GREEN)         │(GREEN) │   (GREEN)    ├────────┤                 │
+│  │                      ├────────┼──────────────┤ Salud  │                 │
+│  │                      │Caucion │  Accidentes  │ 369.8% │                 │
+│  ├──────────────────────┤ 56.2%  │  Personales  │ (RED)  │                 │
+│  │                      │(GREEN) │   64.7%      ├────────┤                 │
+│  │       Vida           │        │   (GREEN)    │        │                 │
+│  │      80.5%           ├────────┴──────────────┤Riesgos │                 │
+│  │     (GREEN)          │      Sepelio          │Agropec.│                 │
+│  │                      │      83.3%            │ 542.5% │                 │
+│  │                      │     (GREEN)           │ (RED)  │                 │
+│  └──────────────────────┴───────────────────────┴────────┘                 │
 │                                                                             │
+│  Hover para detalles: Primas, % Cartera, Ratio Combinado                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Key Features**:
+- **Box Size**: Proportional to primas_emitidas (minimum 5% of max for visibility)
+- **Box Color**:
+  - Deep forest green (#065f46) if combined ratio ≤ 100%
+  - Deep crimson red (#991b1b) if combined ratio > 100%
+- **Text Display**:
+  - Ramo name (top line) with intelligent word wrapping
+  - Combined ratio percentage (bottom line, larger font)
+  - Warm off-white text (#fffbeb) with drop shadows for readability
+  - Dynamic font sizing: 10-18px for names, 14-24px for ratios (scales with box size)
+- **Text Wrapping**:
+  - Automatically wraps long names like "Riesgos Agropecuarios" across multiple lines
+  - Splits at word boundaries for clean display
+  - Uses 85% of box width to maintain margins
+  - Line height: 1.2× font size for optimal readability
+- **Interactive Tooltip**:
+  - Primas emitidas (currency formatted)
+  - % de Cartera
+  - Ratio Combinado
+  - Color-coded border matching box performance (green/red)
+  - Dark background with backdrop blur for clarity
+- **Visibility Filter**: Only shows labels on boxes > 30px width/height
+- **All Ramos Included**: Shows complete portfolio composition, not just top 5
 
 ---
 
@@ -331,8 +376,17 @@
 2. ✅ Add top 5 ramos to header card
 3. ✅ Resultados del Ejercicio with YoY (replaced monthly averages)
 4. ✅ Key ratios with simple color indicators
-5. ✅ Portfolio bar chart
-6. ✅ Context bar with period and ranking
+5. ✅ Key ratios reordered (Ratio Combinado first, then Siniestralidad, then Gastos %)
+6. ✅ Market average comparison for ratios (same tipo_cia group)
+7. ✅ Portfolio treemap visualization (replaced bar chart)
+   - Shows ALL ramos with full metrics
+   - Box size based on primas_emitidas
+   - Color coded by combined ratio performance (green/red)
+   - Intelligent text wrapping for long ramo names
+   - Dynamic font sizing based on box size
+   - Simplified interactive tooltip
+8. ✅ Context bar with period and ranking
+9. ✅ Negative value handling in ratio calculations
 
 ### Phase 2: Operations Tab
 1. Backend: Add endpoint for historical data by company

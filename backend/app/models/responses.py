@@ -77,6 +77,12 @@ class RamoBreakdownItem(BaseModel):
     ramo: str = Field(description="Ramo name")
     primas: float = Field(description="Issued premiums")
     percentage: float = Field(description="Percentage of total")
+    primas_devengadas: float = Field(description="Earned premiums")
+    siniestros_devengados: float = Field(description="Incurred claims")
+    gastos_devengados: float = Field(description="Incurred expenses")
+    siniestralidad: float = Field(description="Siniestralidad ratio (%)")
+    gastos_percent: float = Field(description="Gastos ratio (%)")
+    combined_ratio: float = Field(description="Combined ratio (%)")
 
 
 class CompanyProfileResponse(BaseModel):
@@ -110,6 +116,11 @@ class CompanyProfileResponse(BaseModel):
     gastos_devengados_current: float = Field(description="Incurred expenses (current quarter)")
     # Top 5 ramos
     top_ramos: List[RamoBreakdownItem] = Field(description="Top 5 ramos by primas")
+    # Market averages (same tipo_cia)
+    market_siniestralidad: float = Field(description="Market average siniestralidad (same tipo_cia)")
+    market_gastos_percent: float = Field(description="Market average gastos % (same tipo_cia)")
+    market_combined_ratio: float = Field(description="Market average combined ratio (same tipo_cia)")
+    market_companies_count: int = Field(description="Number of companies in the market group")
 
 
 # Health check

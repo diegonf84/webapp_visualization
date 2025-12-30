@@ -67,8 +67,15 @@ uv run python app_api.py
 
 ## Dashboard Usage
 
-### Available Filters
+### Market Overview Dashboard
 
+**Main Features:**
+- KPI cards showing market totals
+- Stacked bar chart of top N companies by primas emitidas
+- Donut chart showing ramo/subramo distribution
+- Real-time filtering and view mode switching
+
+**Available Filters:**
 - **YEAR**: Select the fiscal year to display
 - **QUARTER**: Select the fiscal quarter
   - March = Q3 (January-March)
@@ -78,14 +85,47 @@ uv run python app_api.py
 - **RAMO**: Filter by insurance branch (Auto, Life, etc.)
 - **ENTITY**: Filter by one or more specific insurance companies
 
-### Data View Mode
-
+**Data View Mode:**
 - **Accumulated**: Shows values accumulated from the start of the fiscal year
 - **Current**: Shows only the selected quarter's values
 
-### Visualization Controls
-
+**Visualization Controls:**
 - **TOP 10/15/20/50**: Limits the bar chart to the top N companies by issued premiums
+
+### Company Profile Dashboard
+
+**Access:** Click on any company name in the market overview to view detailed profile
+
+**Key Features:**
+
+1. **Resumen Tab** (Overview):
+   - **Resultados del Ejercicio**: Financial results with YoY variations
+     - Primas Emitidas, Resultado Técnico, Resultado Financiero, Resultado Final
+   - **Ratios Clave**: Performance ratios with market comparison
+     - Ratio Combinado (first), Siniestralidad, Gastos %
+     - Shows market average for same company type (Generales, ART, Vida, Retiro)
+   - **Composición de Cartera**: Interactive treemap visualization
+     - Box size proportional to primas_emitidas
+     - Color coded: Green (RC ≤ 100%), Red (RC > 100%)
+     - Shows ALL ramos with combined ratio performance
+     - Intelligent text wrapping for long ramo names
+     - Dynamic font sizing based on box size
+     - Hover tooltip with detailed metrics
+
+2. **Operaciones Tab** (Coming Soon):
+   - Historical trends and operational metrics
+
+3. **Inversiones Tab** (Coming Soon):
+   - Asset composition and investment performance
+
+4. **Comparación Tab** (Coming Soon):
+   - Peer comparison and market positioning
+
+**Technical Features:**
+- **Negative Value Handling**: Correctly calculates ratios even with negative primas_devengadas
+- **Dynamic Scaling**: Text sizes and spacing adapt to available space
+- **Performance Indicators**: Color-coded badges for quick assessment
+- **Market Context**: All key ratios show market averages for peer comparison
 
 ## Data Displayed
 
@@ -131,6 +171,7 @@ The FastAPI backend exposes the following endpoints:
 | `GET /api/data/companies/ranking` | Top N companies by primas_emitidas |
 | `GET /api/data/distribution/ramos` | Distribution by ramos |
 | `GET /api/data/distribution/subramos` | Distribution by subramos |
+| `GET /api/data/companies/:codCia` | Company profile with full metrics, YoY, market averages, and all ramos |
 
 ### Query Parameters
 

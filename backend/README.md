@@ -48,6 +48,10 @@ Once the server is running, access the interactive documentation:
 - `GET /api/data/companies/ranking` - Get top N companies ranking
 - `GET /api/data/distribution/ramos` - Get ramos distribution
 - `GET /api/data/distribution/subramos` - Get subramos distribution
+- `GET /api/data/companies/{cod_cia}` - Get company profile with full metrics
+  - Includes: financial results, YoY variations, ranking position
+  - All ramos with complete metrics (primas, siniestralidad, gastos, combined ratio)
+  - Market averages for same company type (tipo_cia)
 
 ### Query Parameters
 
