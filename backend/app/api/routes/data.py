@@ -23,6 +23,9 @@ from app.models.responses import (
     CompanyListItem,
     CompanyProfileResponse,
     RamoBreakdownItem,
+    CompanyOperationsResponse,
+    PeriodDataPoint,
+    RamoOption,
 )
 
 router = APIRouter()
@@ -384,37 +387,27 @@ async def get_company_profile(
             )
         )
 
-    # Calculate market averages (same tipo_cia)
+    # Calculate market ratios (same tipo_cia) - aggregate then divide
     market_df = all_latest[all_latest["tipo_cia"] == tipo_cia]
-    market_by_company = (
-        market_df.groupby("cod_cia")
-        .agg({
-            "primas_devengadas": "sum",
-            "siniestros_devengados": "sum",
-            "gastos_devengados": "sum",
-        })
-        .reset_index()
-    )
-    market_companies_count = len(market_by_company)
+    market_companies_count = market_df["cod_cia"].nunique()
 
-    # Calculate ratios per company, then average
-    market_by_company["siniestralidad"] = market_by_company.apply(
-        lambda r: (r["siniestros_devengados"] / r["primas_devengadas"] * 100)
-        if r["primas_devengadas"] > 0 else 0,
-        axis=1
-    )
-    market_by_company["gastos_pct"] = market_by_company.apply(
-        lambda r: (r["gastos_devengados"] / r["primas_devengadas"] * 100)
-        if r["primas_devengadas"] > 0 else 0,
-        axis=1
-    )
-    market_by_company["combined_ratio"] = (
-        market_by_company["siniestralidad"] + market_by_company["gastos_pct"]
-    )
+    # Aggregate totals across all companies in the market
+    market_totals = market_df.agg({
+        "primas_devengadas": "sum",
+        "siniestros_devengados": "sum",
+        "gastos_devengados": "sum",
+    })
 
-    market_siniestralidad = float(market_by_company["siniestralidad"].mean())
-    market_gastos_percent = float(market_by_company["gastos_pct"].mean())
-    market_combined_ratio = float(market_by_company["combined_ratio"].mean())
+    # Calculate ratios from aggregated totals (not average of individual ratios)
+    market_primas = market_totals["primas_devengadas"]
+    if market_primas > 0:
+        market_siniestralidad = float(market_totals["siniestros_devengados"] / market_primas * 100)
+        market_gastos_percent = float(market_totals["gastos_devengados"] / market_primas * 100)
+        market_combined_ratio = market_siniestralidad + market_gastos_percent
+    else:
+        market_siniestralidad = 0.0
+        market_gastos_percent = 0.0
+        market_combined_ratio = 0.0
 
     return CompanyProfileResponse(
         cod_cia=str(cod_cia),
@@ -444,4 +437,149 @@ async def get_company_profile(
         market_gastos_percent=market_gastos_percent,
         market_combined_ratio=market_combined_ratio,
         market_companies_count=market_companies_count,
+    )
+
+
+def format_periodo_label(periodo: str) -> str:
+    """Format period from YYYYQQ to human readable label."""
+    periodo_str = str(periodo)
+    if len(periodo_str) != 6:
+        return periodo_str
+    year = periodo_str[:4]
+    quarter = periodo_str[4:]
+    quarter_names = {
+        "01": "Mar",
+        "02": "Jun",
+        "03": "Sep",
+        "04": "Dic",
+    }
+    return f"{quarter_names.get(quarter, quarter)} {year}"
+
+
+@router.get("/companies/{cod_cia}/operations", response_model=CompanyOperationsResponse)
+async def get_company_operations(
+    cod_cia: str,
+    ramo: Optional[str] = Query(None, description="Filter by ramo (null = all ramos)"),
+    loader: DataLoader = Depends(get_loader),
+):
+    """Get company operations time series data across all available periods."""
+    df = loader.load_subramos()
+
+    # Filter by company
+    company_df = df[df["cod_cia"] == cod_cia]
+
+    if company_df.empty:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Company {cod_cia} not found")
+
+    # Get company info
+    nombre_corto = company_df.iloc[0]["nombre_corto"]
+    tipo_cia = company_df.iloc[0]["tipo_cia"]
+
+    # Get available ramos for this company (before filtering)
+    available_ramos_list = sorted(company_df["ramo_nombre_corto"].dropna().unique())
+    available_ramos = [RamoOption(value="all", label="Todos los Ramos")]
+    available_ramos.extend([
+        RamoOption(value=r, label=r) for r in available_ramos_list
+    ])
+
+    # Filter by ramo if specified
+    if ramo and ramo != "all":
+        company_df = company_df[company_df["ramo_nombre_corto"] == ramo]
+
+    # Calculate market ratio per period (aggregate all companies of same tipo_cia)
+    # If a ramo is selected, filter market by that ramo too
+    market_df = df[df["tipo_cia"] == tipo_cia]
+    if ramo and ramo != "all":
+        market_df = market_df[market_df["ramo_nombre_corto"] == ramo]
+
+    market_by_period = (
+        market_df.groupby("periodo")
+        .agg({
+            "primas_devengadas": "sum",
+            "siniestros_devengados": "sum",
+            "gastos_devengados": "sum",
+        })
+        .reset_index()
+    )
+    # Calculate ratio from aggregated totals (not average of individual ratios)
+    market_by_period["combined_ratio"] = market_by_period.apply(
+        lambda r: ((r["siniestros_devengados"] + r["gastos_devengados"]) / r["primas_devengadas"] * 100)
+        if r["primas_devengadas"] > 0 else 0,
+        axis=1
+    )
+    market_ratio_by_period = market_by_period.set_index("periodo")["combined_ratio"].to_dict()
+
+    # Group by period (both accumulated and current quarter values)
+    period_data = (
+        company_df.groupby("periodo")
+        .agg({
+            "primas_emitidas": "sum",
+            "primas_devengadas": "sum",
+            "siniestros_devengados": "sum",
+            "gastos_devengados": "sum",
+            "primas_devengadas_current": "sum",
+            "siniestros_devengados_current": "sum",
+            "gastos_devengados_current": "sum",
+        })
+        .reset_index()
+        .sort_values("periodo")
+    )
+
+    # Build response periods
+    periods = []
+    for _, row in period_data.iterrows():
+        periodo = str(int(row["periodo"]))
+        # Accumulated values
+        primas_devengadas = float(row["primas_devengadas"])
+        siniestros_devengados = float(row["siniestros_devengados"])
+        gastos_devengados = float(row["gastos_devengados"])
+        # Current quarter values
+        primas_devengadas_current = float(row["primas_devengadas_current"])
+        siniestros_devengados_current = float(row["siniestros_devengados_current"])
+        gastos_devengados_current = float(row["gastos_devengados_current"])
+
+        # Calculate ratios from accumulated values (protect against division by zero)
+        if primas_devengadas != 0:
+            ratio_siniestralidad = (siniestros_devengados / primas_devengadas) * 100
+            ratio_gastos = (gastos_devengados / primas_devengadas) * 100
+        else:
+            ratio_siniestralidad = 0
+            ratio_gastos = 0
+
+        ratio_combinado = ratio_siniestralidad + ratio_gastos
+
+        # Always calculate resultado_tecnico from subramos data
+        resultado_tecnico = primas_devengadas - siniestros_devengados - gastos_devengados
+        resultado_tecnico_current = primas_devengadas_current - siniestros_devengados_current - gastos_devengados_current
+
+        # Get market ratio for this period
+        market_ratio = market_ratio_by_period.get(int(periodo), 0.0)
+
+        periods.append(
+            PeriodDataPoint(
+                periodo=periodo,
+                periodo_label=format_periodo_label(periodo),
+                primas_emitidas=float(row["primas_emitidas"]),
+                primas_devengadas=primas_devengadas,
+                siniestros_devengados=siniestros_devengados,
+                gastos_devengados=gastos_devengados,
+                resultado_tecnico=resultado_tecnico,
+                primas_devengadas_current=primas_devengadas_current,
+                siniestros_devengados_current=siniestros_devengados_current,
+                gastos_devengados_current=gastos_devengados_current,
+                resultado_tecnico_current=resultado_tecnico_current,
+                ratio_combinado=round(ratio_combinado, 1),
+                ratio_siniestralidad=round(ratio_siniestralidad, 1),
+                ratio_gastos=round(ratio_gastos, 1),
+                market_ratio_combinado=round(market_ratio, 1),
+            )
+        )
+
+    return CompanyOperationsResponse(
+        cod_cia=cod_cia,
+        nombre_corto=nombre_corto,
+        selected_ramo=ramo if ramo and ramo != "all" else None,
+        periods=periods,
+        available_ramos=available_ramos,
     )

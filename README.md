@@ -112,8 +112,18 @@ uv run python app_api.py
      - Dynamic font sizing based on box size
      - Hover tooltip with detailed metrics
 
-2. **Operaciones Tab** (Coming Soon):
-   - Historical trends and operational metrics
+2. **Operaciones Tab** (Operations):
+   - **Ramo Selector**: Filter all charts by specific ramo or view all
+   - **Evolucion de Ratios** (Balance Data): Multi-line chart showing Ratio Combinado,
+     Siniestralidad, Gastos, and Market average over time with 100% equilibrium line
+   - **Primas y Siniestros** (Quarterly Data): Area chart showing earned premiums
+     and incurred claims for each 3-month period
+   - **Resultado Tecnico** (Quarterly Data): Bar chart with green/red bars for
+     positive/negative technical result each quarter
+   - **Puente de Resultado Tecnico** (Rolling 12 months): Waterfall chart explaining
+     why technical result changed YoY - shows impact of primas, siniestros, and gastos
+   - **Alertas Operacionales**: Automated alerts for ratio > 100%, YoY deterioration,
+     and growth imbalance patterns
 
 3. **Inversiones Tab** (Coming Soon):
    - Asset composition and investment performance
@@ -172,6 +182,7 @@ The FastAPI backend exposes the following endpoints:
 | `GET /api/data/distribution/ramos` | Distribution by ramos |
 | `GET /api/data/distribution/subramos` | Distribution by subramos |
 | `GET /api/data/companies/:codCia` | Company profile with full metrics, YoY, market averages, and all ramos |
+| `GET /api/data/companies/:codCia/operations` | Time series data for Operations tab (ratios, primas, siniestros, market) |
 
 ### Query Parameters
 

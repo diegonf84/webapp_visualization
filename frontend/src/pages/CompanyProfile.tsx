@@ -26,6 +26,7 @@ import { useCompanyProfile } from '@/hooks/useCompanyProfile';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { CHART_COLORS } from '@/lib/constants';
+import { OperationsTab } from '@/components/operations';
 
 const tipoCiaColors: Record<string, string> = {
   Generales: 'bg-blue-100 text-blue-800',
@@ -738,15 +739,7 @@ export function CompanyProfile() {
                   )}
 
                   {activeTab === 'operaciones' && (
-                    <div className="text-center py-8">
-                      <TrendingUp className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                        Operaciones
-                      </h3>
-                      <p className="text-slate-500">
-                        Proximamente: Evolucion de primas, composicion por ramo, siniestralidad, gastos.
-                      </p>
-                    </div>
+                    <OperationsTab codCia={codCia!} />
                   )}
 
                   {activeTab === 'inversiones' && (

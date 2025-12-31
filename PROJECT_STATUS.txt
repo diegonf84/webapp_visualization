@@ -1,8 +1,8 @@
 ================================================================================
 ARGENTINE INSURANCE MARKET DASHBOARD - PROJECT STATUS
 ================================================================================
-Last Updated: December 2024
-Current Phase: Company Deep-Dive Dashboard - Phase 3 (Resumen Tab) ENHANCED
+Last Updated: December 31, 2025
+Current Phase: Company Deep-Dive Dashboard - Phase 4 (Operaciones Tab) COMPLETE
 
 ================================================================================
 1. PROJECT OVERVIEW
@@ -32,7 +32,7 @@ DATA SOURCES:
 TECH STACK:
 - Frontend: React 18 + TypeScript + Vite
 - Backend: Python FastAPI
-- Charts: Nivo (@nivo/bar, @nivo/pie)
+- Charts: Nivo (@nivo/bar, @nivo/pie, @nivo/treemap)
 - Styling: Tailwind CSS + shadcn/ui-style components
 - State: React Query (TanStack Query) for data fetching
 - Routing: React Router v6
@@ -99,14 +99,29 @@ MARKET DATA:
   GET /api/data/distribution/subramos → Distribution by subramo
 
 COMPANY DATA:
-  GET /api/data/companies           → List all companies (for selection)
+  GET /api/data/companies/list      → List all companies (for selection page)
   GET /api/data/companies/{cod_cia} → Single company profile with:
       - Accumulated metrics (primas, siniestros, gastos)
       - Current quarter metrics (*_current fields)
       - Results from otros_conceptos (resultado_tecnico, resultado_financiero)
       - Ranking position (by primas emitidas)
       - YoY variations for key metrics
-      - Top 5 ramos breakdown
+      - ALL ramos breakdown with full metrics (not just top 5):
+        * primas_emitidas, primas_devengadas
+        * siniestros_devengados, gastos_devengados
+        * siniestralidad, gastos_percent, combined_ratio
+      - Market averages for same tipo_cia:
+        * market_siniestralidad, market_gastos_percent, market_combined_ratio
+        * market_companies_count
+
+  GET /api/data/companies/{cod_cia}/operations → Time series for Operations tab:
+      - Query param: ramo (optional, filters by ramo)
+      - For each period (all available quarters):
+        * Accumulated values: primas, siniestros, gastos, resultado_tecnico
+        * Current quarter values (*_current): for charts and rolling 12
+        * Ratios: ratio_combinado, ratio_siniestralidad, ratio_gastos
+        * Market ratio_combinado (same tipo_cia, same ramo if filtered)
+      - Available ramos list for dropdown selector
 
 ================================================================================
 4. DASHBOARDS & CURRENT STATUS
@@ -131,7 +146,7 @@ DASHBOARD 2: COMPANY DEEP-DIVE (/compania/:codCia) ................. [IN PROGRES
     - Filter as you type
     - Navigate to profile on selection
 
-  Phase 3: Resumen Tab ............................................. [COMPLETE - ENHANCED]
+  Phase 3: Resumen Tab ............................................. [COMPLETE - ENHANCED v2]
 
     Resume Card Header:
       - Dark context bar at top with:
@@ -149,19 +164,80 @@ DASHBOARD 2: COMPANY DEEP-DIVE (/compania/:codCia) ................. [IN PROGRES
          - Resultado Final (tecnico + financiero) + YoY %
          - YoY compares same quarter previous year
          - Edge cases handled: N/A for new companies, zero division, >1000% variation
+         - Handles negative values correctly (common in insurance data)
 
-      2. Ratios Clave: 3 ratio cards with colored badges
+      2. Ratios Clave: 3 ratio cards with colored badges + MARKET COMPARISON
+         - Reordered: Ratio Combinado FIRST, then Siniestralidad, then Gastos %
+         - Ratio Combinado: <95% green, 95-105% yellow, >105% red
          - Siniestralidad: <65% green, 65-80% yellow, >80% red
          - Gastos %: <25% green, 25-35% yellow, >35% red
-         - Ratio Combinado: <95% green, 95-105% yellow, >105% red
+         - Each card shows market average for same tipo_cia group below
+         - Market average = mean of individual company ratios (not weighted)
 
-      3. Composicion de Cartera: Horizontal bar chart (Top 5 ramos)
+      3. Composicion de Cartera: TREEMAP VISUALIZATION (ALL ramos, not just top 5)
+         - Box size proportional to primas_emitidas
+         - Minimum box size: 5% of max value (ensures visibility)
+         - Box colors:
+           * Deep forest green (#065f46) if combined_ratio <= 100%
+           * Deep crimson red (#991b1b) if combined_ratio > 100%
+         - Intelligent text wrapping:
+           * Long names like "Riesgos Agropecuarios" wrap across multiple lines
+           * Splits at word boundaries using 85% of box width
+           * Line height: 1.2x font size for readability
+         - Dynamic font sizing based on box size:
+           * Ramo name: 10-18px (scales with box size)
+           * Combined ratio: 14-24px (always larger than name)
+         - Text styling:
+           * Warm off-white (#fffbeb) for better aesthetics
+           * Drop shadows for readability on colored backgrounds
+         - Simplified interactive tooltip:
+           * Primas (currency formatted)
+           * % de Cartera
+           * Ratio Combinado
+           * Color-coded border (green/red) matching performance
+           * Dark background with backdrop blur
+         - Visibility filter: Only shows labels on boxes > 30px width/height
 
-  Phase 4: Operaciones Tab ......................................... [PENDING]
-    - Production trends (primas over time)
-    - Siniestralidad evolution
-    - Expense breakdown donut
-    - Breakdown by ramo table
+  Phase 4: Operaciones Tab ......................................... [COMPLETE]
+
+    Ramo Selector:
+      - Dropdown to filter all charts by specific ramo
+      - "Todos los Ramos" option for aggregate view
+      - Market line also filters by selected ramo
+
+    Chart 1: Evolucion de Ratios (Datos de Balance):
+      - Multi-line chart using Nivo ResponsiveLine
+      - Lines: Ratio Combinado (red, thick), Mercado (gray), Siniestralidad (light blue), Gastos (amber)
+      - Equilibrio reference line at 100% (dashed)
+      - Custom layer for different line thicknesses
+      - Slice tooltips showing all values at each point
+      - Uses accumulated values for ratio calculations
+
+    Chart 2: Primas y Siniestros (Datos trimestrales):
+      - Area chart using Recharts
+      - Shows primasDevengadasCurrent and siniestrosDevengadosCurrent
+      - Gradient fills for visual appeal
+      - Uses _current (3-month) values, not accumulated
+
+    Chart 3: Resultado Tecnico (Datos trimestrales):
+      - Bar chart using Recharts
+      - Green bars for positive, red bars for negative
+      - Reference line at zero
+      - Uses resultadoTecnicoCurrent (calculated: primas - siniestros - gastos)
+
+    Chart 4: Puente de Resultado Tecnico (Rolling 12 meses):
+      - Waterfall chart showing YoY change in resultado tecnico
+      - Compares two rolling 12-month windows (last 4 quarters vs previous 4)
+      - 5 bars: Initial R12 → Delta Primas → Delta Siniestros → Delta Gastos → Final R12
+      - Sign convention: primas positive impact, siniestros/gastos inverted
+      - Collapsible with info box explaining the visualization
+      - Requires minimum 8 quarters of data
+
+    Chart 5: Alertas Operacionales:
+      - Calculated from data patterns
+      - Alert types: ratio_above_100, yoy_deterioration, growth_imbalance
+      - Severity levels: critical (red), warning (yellow), info (blue)
+      - Shows healthy ratio info when no issues detected
 
   Phase 5: Inversiones Tab ......................................... [PENDING]
     - Patrimonio neto evolution
@@ -217,14 +293,26 @@ FRONTEND TYPES (frontend/src/types/api.ts):
     siniestros_devengados_current: number
     gastos_devengados_current: number
 
-    // Portfolio breakdown
+    // Portfolio breakdown (ALL ramos with full metrics)
     top_ramos: RamoBreakdownItem[]
+
+    // Market averages (same tipo_cia)
+    market_siniestralidad: number
+    market_gastos_percent: number
+    market_combined_ratio: number
+    market_companies_count: number
   }
 
   RamoBreakdownItem {
     ramo: string
     primas: number
     percentage: number
+    primas_devengadas: number
+    siniestros_devengados: number
+    gastos_devengados: number
+    siniestralidad: number          // Calculated ratio (%)
+    gastos_percent: number          // Calculated ratio (%)
+    combined_ratio: number          // Calculated ratio (%)
   }
 
 BACKEND MODELS (backend/app/models/responses.py):
@@ -282,15 +370,23 @@ Navigation:
 8. NEXT STEPS (PRIORITY ORDER)
 ================================================================================
 
-IMMEDIATE:
-  1. Test Company Profile Resumen Tab with Docker
-  2. Fix any issues found during testing
-
-PHASE 4 - OPERACIONES TAB:
-  1. Backend: Add endpoint for historical data by company
-  2. Frontend: Line charts for primas/siniestralidad trends
-  3. Frontend: Expense breakdown donut
-  4. Frontend: Table with breakdown by ramo
+COMPLETED RECENT WORK:
+  ✅ Reordered Ratios Clave (Ratio Combinado first)
+  ✅ Added market average comparison to all ratios
+  ✅ Replaced bar chart with treemap visualization
+  ✅ Implemented intelligent text wrapping for long ramo names
+  ✅ Added dynamic font sizing based on box size
+  ✅ Fixed negative value handling in ratio calculations
+  ✅ Enhanced tooltip with simplified, focused information
+  ✅ PHASE 4 OPERATIONS TAB COMPLETE:
+    - Backend endpoint: GET /api/data/companies/{cod_cia}/operations
+    - Ratio Evolution chart (Nivo line chart, accumulated values)
+    - Primas y Siniestros chart (Recharts area, quarterly values)
+    - Resultado Tecnico chart (Recharts bar, quarterly values)
+    - Rolling 12 Waterfall chart (YoY comparison)
+    - Operational Alerts (calculated from data patterns)
+    - Ramo selector with market line filtering
+    - Chart subtitles clarifying data type (Balance vs Trimestral)
 
 PHASE 5 - INVERSIONES TAB:
   1. Backend: Load otros_conceptos_historico data
@@ -342,6 +438,21 @@ PLANNING:
 - Some companies may have missing data for certain periods
 - The "current" columns assume quarterly data (divide by 3 for monthly)
 - YoY shows "N/A" for new companies or when previous year data is missing
+
+DATA HANDLING NOTES:
+- Negative values: Primas_devengadas and siniestros_devengados can be negative
+  (this is valid in insurance accounting, not an error). Ratio calculations
+  handle negative values correctly and only protect against zero division.
+- Extreme ratios: Combined ratio can exceed 1000% in rare cases. The treemap
+  visualization handles these gracefully with proper labeling.
+- Market averages: Calculated as mean of individual company ratios (not
+  weighted by company size) for fairer peer comparison.
+
+TREEMAP VISUALIZATION:
+- Text wrapping algorithm ensures long ramo names display properly
+- Minimum box size (5% of max) ensures small ramos remain visible
+- Dynamic font sizing provides visual hierarchy while maintaining readability
+- Distinctive color palette (forest green/crimson red) different from other UI
 
 ================================================================================
 END OF PROJECT STATUS

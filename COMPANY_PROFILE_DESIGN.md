@@ -167,95 +167,160 @@
 
 ---
 
-## 3. Operaciones Tab - Trends & Breakdown
+## 3. Operaciones Tab - IMPLEMENTED
 
-**Purpose**: Deep dive into production, claims, and expenses over time
+**Purpose**: Deep dive into ratios, production, claims, and technical result over time
 
-### Section A: Trend Selector
+### Section A: Ramo Selector
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ FILTROS:  [Ultimos 8 trimestres ▼]  [Todos los Ramos ▼]  [Ver: Acumulado ▼]│
+│ Ramo: [Todos los Ramos ▼]                    Mostrando datos de: [Ramo]    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Section B: Production Trend
+**Features**:
+- Dropdown with all company's ramos
+- "Todos los Ramos" for aggregate view
+- All charts filter by selected ramo
+- Market line also filters by ramo
+
+### Section B: Evolucion de Ratios (Datos de Balance)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ EVOLUCION DE PRIMAS                                                        │
+│ EVOLUCION DE RATIOS (Datos de Balance)                                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  [Line Chart: Primas Emitidas over time]                                   │
+│  [Multi-line Chart - Nivo ResponsiveLine]                                  │
 │                                                                             │
 │     ^                                                                       │
-│  $M │        ___________                                                   │
-│     │    ___/           \___                                               │
-│     │___/                   \___                                           │
+│  %  │  -------- 100% Equilibrio (dashed)                                   │
+│     │    ___  Ratio Combinado (red, thick)                                 │
+│     │___/   \___  Mercado (gray)                                           │
+│     │    Siniestralidad (light blue, thin)                                 │
+│     │    Gastos (amber, thin)                                              │
 │     └────────────────────────────►                                         │
-│       Q1   Q2   Q3   Q4   Q1   Q2   Q3   Q4                               │
-│       2023                2024                                             │
 │                                                                             │
-│  Crecimiento YoY: +12.5%                                                   │
+│  Legend: ● Ratio Combinado ● Mercado ● Siniestralidad ● Gastos            │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Section C: Siniestralidad Trend
+**Features**:
+- Uses ACCUMULATED values for ratio calculation
+- Custom line widths: RC=4, Market=2.5, Others=1.5
+- 100% equilibrium reference line
+- Slice tooltips showing all values at each point
+
+### Section C: Primas y Siniestros (Datos trimestrales)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ EVOLUCION DE SINIESTRALIDAD                                                │
+│ PRIMAS Y SINIESTROS (Datos trimestrales)                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  [Line Chart: Siniestralidad % over time]                                  │
+│  [Area Chart - Recharts]                                                   │
+│                                                                             │
+│     ^    ████████  Primas (blue gradient)                                  │
+│  $M │   ████████████                                                       │
+│     │  ████████████████                                                    │
+│     │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Siniestros (red gradient)                         │
+│     └────────────────────────────►                                         │
+│       Q1'23  Q2'23  Q3'23  Q4'23  Q1'24  Q2'24                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Features**:
+- Uses _CURRENT values (3-month quarterly data)
+- primasDevengadasCurrent and siniestrosDevengadosCurrent
+- Gradient fills for visual appeal
+
+### Section D: Resultado Tecnico (Datos trimestrales)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ RESULTADO TECNICO (Datos trimestrales)                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [Bar Chart - Recharts]                                                    │
 │                                                                             │
 │     ^                                                                       │
-│   % │  -------- 80% threshold                                              │
-│     │        ___                                                           │
-│     │    ___/   \___                                                       │
-│     │___/           \___                                                   │
-│     └────────────────────────►                                             │
-│                                                                             │
-│  Siniestralidad promedio: 68.2%                                            │
+│  $M │   ██     ██ ██                                                       │
+│     │   ██  ██ ██ ██                                                       │
+│  0  │───██──██─██─██───────────────────                                    │
+│     │      ██                                                               │
+│     │      ██  (red = negative)                                            │
+│     └────────────────────────────►                                         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Section D: Breakdown by Ramo
+**Features**:
+- Uses _CURRENT values (3-month quarterly data)
+- resultadoTecnicoCurrent = primas - siniestros - gastos (calculated)
+- Green bars for positive, red for negative
+- Zero reference line
+
+### Section E: Puente de Resultado Tecnico (Rolling 12 meses)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ SINIESTRALIDAD POR RAMO (periodo actual)                                   │
+│ ▼ PUENTE DE RESULTADO TECNICO (Rolling 12 meses)  R12 Sep'23 → R12 Sep'24 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  Ramo           │ Primas     │ Siniestros │ Siniestralidad │ Status       │
-│  ───────────────┼────────────┼────────────┼────────────────┼──────────    │
-│  Automotores    │  $XXX M    │   $XXX M   │     72.3%      │  ● Warning   │
-│  Vida           │  $XXX M    │   $XXX M   │     45.2%      │  ● Good      │
-│  Incendio       │  $XXX M    │   $XXX M   │     25.1%      │  ● Good      │
-│  RC             │  $XXX M    │   $XXX M   │     95.3%      │  ● Critical  │
-│  ...            │            │            │                │              │
+│  [Waterfall Chart - Recharts]                                              │
+│                                                                             │
+│     ^                                                                       │
+│  $M │                          ██                                          │
+│     │  ██          ██          ██                                          │
+│     │  ██    ██    ██    ██    ██                                          │
+│     │  ██    ██    ██    ██    ██                                          │
+│     └──────────────────────────────►                                       │
+│       Resultado  Δ Primas  Δ Siniestros  Δ Gastos  Resultado              │
+│        R12 Ant.   (+/-)      (inverted)   (inverted)  R12 Act.            │
+│                                                                             │
+│  Legend: ■ Resultado R12  ■ Impacto positivo  ■ Impacto negativo          │
+│                                                                             │
+│  ℹ Este grafico muestra por que cambio el resultado tecnico entre dos     │
+│    periodos rolling 12 meses. Las barras intermedias representan el       │
+│    impacto de cada componente.                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Section E: Expense Breakdown
+**Features**:
+- Collapsible (starts collapsed)
+- Requires minimum 8 quarters of data
+- Compares two rolling 12-month windows:
+  - Current R12: Sum of last 4 quarters (_current values)
+  - Previous R12: Sum of 4 quarters before that
+- 5 bars: Initial R12 → Δ Primas → Δ Siniestros → Δ Gastos → Final R12
+- Sign convention:
+  - Primas: positive impact if increased
+  - Siniestros/Gastos: inverted (×-1) - increase is bad
+- Validation: Initial + impacts must equal Final
+
+### Section F: Alertas Operacionales
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ ESTRUCTURA DE GASTOS                                                        │
+│ ALERTAS OPERACIONALES                                                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  [Donut Chart: Gastos Breakdown]                                           │
+│  🔴 Ratio Combinado > 100% Sostenido                                       │
+│     El ratio combinado ha superado el 100% durante 5 periodos consecutivos.│
 │                                                                             │
-│       Comisiones  35%                                                       │
-│       Sueldos     25%                                                       │
-│       Impuestos   18%                                                       │
-│       Honorarios   8%                                                       │
-│       Publicidad   4%                                                       │
-│       Otros       10%                                                       │
+│  🟡 Deterioro Interanual Significativo                                     │
+│     El ratio combinado aumento 15.3 puntos porcentuales vs. año anterior.  │
 │                                                                             │
-│  Total Gastos: $XXX M  |  Ratio: XX.X%                                     │
+│  🔵 Ratio Combinado Saludable                                              │
+│     El ratio combinado actual es 85.2%, indicando margen tecnico positivo. │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Alert Types**:
+- `ratio_above_100`: Critical if RC > 100% for 3+ consecutive periods
+- `yoy_deterioration`: Warning if RC increased > 10 points YoY
+- `growth_imbalance`: Warning if siniestros grow 15%+ faster than primas
+- `healthy_ratio`: Info if RC < 95% and no other alerts
 
 ---
 
@@ -388,11 +453,15 @@
 8. ✅ Context bar with period and ranking
 9. ✅ Negative value handling in ratio calculations
 
-### Phase 2: Operations Tab
-1. Backend: Add endpoint for historical data by company
-2. Line charts for primas and siniestralidad
-3. Table with breakdown by ramo
-4. Expense donut chart
+### Phase 2: Operations Tab - COMPLETED
+1. ✅ Backend: GET /api/data/companies/{cod_cia}/operations endpoint
+2. ✅ Evolucion de Ratios - Nivo line chart (accumulated values, market comparison)
+3. ✅ Primas y Siniestros - Recharts area chart (quarterly _current values)
+4. ✅ Resultado Tecnico - Recharts bar chart (quarterly _current values)
+5. ✅ Puente Rolling 12 - Waterfall chart (YoY comparison of rolling 12 months)
+6. ✅ Alertas Operacionales - Calculated from data patterns
+7. ✅ Ramo selector with full filtering (including market line)
+8. ✅ Chart subtitles clarifying data type (Datos de Balance vs Datos trimestrales)
 
 ### Phase 3: Inversiones Tab
 1. Backend: Load otros_conceptos data
@@ -412,7 +481,7 @@
 |----------|---------|--------|
 | `GET /api/data/companies/:codCia` | Company profile with results, ranking, YoY | ✅ DONE |
 | `GET /api/company/:codCia/portfolio` | Ramo breakdown | Included in profile |
-| `GET /api/company/:codCia/history` | Historical KPIs | PENDING |
+| `GET /api/data/companies/:codCia/operations` | Time series for Operations tab | ✅ DONE |
 | `GET /api/company/:codCia/expenses` | Expense breakdown | PENDING |
 | `GET /api/company/:codCia/investments` | From otros_conceptos | PENDING |
 | `GET /api/company/:codCia/peers` | Peer comparison | PENDING |

@@ -123,6 +123,44 @@ class CompanyProfileResponse(BaseModel):
     market_companies_count: int = Field(description="Number of companies in the market group")
 
 
+# Operations time series response
+class PeriodDataPoint(BaseModel):
+    """Single period data point for time series."""
+    periodo: str = Field(description="Period code (YYYYQQ)")
+    periodo_label: str = Field(description="Human readable period label")
+    # Accumulated values (year-to-date) - used for ratios chart
+    primas_emitidas: float = Field(description="Issued premiums (accumulated)")
+    primas_devengadas: float = Field(description="Earned premiums (accumulated)")
+    siniestros_devengados: float = Field(description="Incurred claims (accumulated)")
+    gastos_devengados: float = Field(description="Incurred expenses (accumulated)")
+    resultado_tecnico: float = Field(description="Technical result (accumulated)")
+    # Current quarter values (3-month period) - used for absolute values charts and rolling 12
+    primas_devengadas_current: float = Field(description="Earned premiums (current quarter)")
+    siniestros_devengados_current: float = Field(description="Incurred claims (current quarter)")
+    gastos_devengados_current: float = Field(description="Incurred expenses (current quarter)")
+    resultado_tecnico_current: float = Field(description="Technical result (current quarter)")
+    # Ratios (calculated from accumulated values)
+    ratio_combinado: float = Field(description="Combined ratio (%)")
+    ratio_siniestralidad: float = Field(description="Siniestralidad ratio (%)")
+    ratio_gastos: float = Field(description="Gastos ratio (%)")
+    market_ratio_combinado: float = Field(description="Market average combined ratio (same tipo_cia)")
+
+
+class RamoOption(BaseModel):
+    """Ramo option for selector."""
+    value: str = Field(description="Ramo value (code or 'all')")
+    label: str = Field(description="Ramo display label")
+
+
+class CompanyOperationsResponse(BaseModel):
+    """Company operations time series response."""
+    cod_cia: str = Field(description="Company code")
+    nombre_corto: str = Field(description="Company short name")
+    selected_ramo: Optional[str] = Field(None, description="Selected ramo filter (null = all)")
+    periods: List[PeriodDataPoint] = Field(description="Time series data points")
+    available_ramos: List[RamoOption] = Field(description="Available ramos for filtering")
+
+
 # Health check
 class HealthResponse(BaseModel):
     """Health check response."""

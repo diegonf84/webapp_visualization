@@ -10,6 +10,7 @@ import type {
   CompanyListParams,
   CompanyProfileResponse,
 } from '@/types/api';
+import type { OperationsAPIResponse } from '@/types/operations';
 
 // API base URL:
 // - Development: Vite proxy handles /api/* (see vite.config.ts)
@@ -73,6 +74,12 @@ export async function getCompanies(params?: CompanyListParams): Promise<CompanyL
 
 export async function getCompanyProfile(codCia: string): Promise<CompanyProfileResponse> {
   const { data } = await api.get<CompanyProfileResponse>(`/data/companies/${codCia}`);
+  return data;
+}
+
+export async function getCompanyOperations(codCia: string, ramo?: string | null): Promise<OperationsAPIResponse> {
+  const params = ramo && ramo !== 'all' ? { ramo } : undefined;
+  const { data } = await api.get<OperationsAPIResponse>(`/data/companies/${codCia}/operations`, { params });
   return data;
 }
 
