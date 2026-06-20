@@ -453,13 +453,16 @@ export function CompanyProfile() {
                           <Card>
                             <CardContent className="p-4">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-slate-600">Ratio Combinado</span>
+                                <div className="flex items-center">
+                                  <span className="text-sm font-medium text-slate-600">Índice Combinado</span>
+                                  <span className="text-xs text-slate-400 ml-2">IC</span>
+                                </div>
                                 <Badge variant={getRatioVariant(combinedRatio, { good: 95, warning: 105 })}>
                                   {combinedRatio.toFixed(1)}%
                                 </Badge>
                               </div>
                               <p className="text-xs text-slate-500 mb-2">
-                                Siniestralidad + Gastos (rentable si &lt; 100%)
+                                Siniestralidad + Gastos (rentable si IC &lt; 100%)
                               </p>
                               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                                 <span className="text-xs text-slate-400">
@@ -522,7 +525,7 @@ export function CompanyProfile() {
                           Composicion de Cartera
                         </h3>
                         <p className="text-sm text-slate-500 mb-4">
-                          Tamano segun primas emitidas • <span className="font-semibold" style={{ color: '#065f46' }}>Verde</span> si RC ≤ 100% • <span className="font-semibold" style={{ color: '#991b1b' }}>Rojo</span> si RC &gt; 100%
+                          Verde: IC 0–100% · Amarillo: IC 100–130% · Rojo: IC&gt; 130%
                         </p>
                         <Card>
                           <CardContent className="p-4">
