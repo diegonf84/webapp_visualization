@@ -27,6 +27,7 @@ import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { CHART_COLORS } from '@/lib/constants';
 import { OperationsTab } from '@/components/operations';
+import type { RamoBreakdownItem } from '@/types/api';
 
 const tipoCiaColors: Record<string, string> = {
   Generales: 'bg-blue-100 text-blue-800',
@@ -133,19 +134,53 @@ export function CompanyProfile() {
     gastos_percent: number;
   }
 
-  // Prepare treemap data for portfolio
+  // Prepare treemap data for portfolio (cap at 6 cells: top 5 + "Otros")
   const treemapData = useMemo(() => {
     if (!profile?.top_ramos || profile.top_ramos.length === 0) return null;
 
+    const sorted = [...profile.top_ramos].sort((a, b) => b.primas - a.primas);
+    const totalPrimas = sorted.reduce((s, r) => s + r.primas, 0);
+
+    let items: RamoBreakdownItem[];
+    if (sorted.length <= 6) {
+      items = sorted;
+    } else {
+      const top5 = sorted.slice(0, 5);
+      const tail = sorted.slice(5);
+      const tailPrimas = tail.reduce((s, r) => s + r.primas, 0);
+      const tailPrimasDev = tail.reduce((s, r) => s + r.primas_devengadas, 0);
+      const tailSiniestros = tail.reduce((s, r) => s + r.siniestros_devengados, 0);
+      const tailGastos = tail.reduce((s, r) => s + r.gastos_devengados, 0);
+      const otrosIC = tailPrimasDev !== 0
+        ? ((tailSiniestros + tailGastos) / tailPrimasDev) * 100
+        : 0;
+      const otrosPercentage = totalPrimas !== 0
+        ? (tailPrimas / totalPrimas) * 100
+        : 0;
+      items = [
+        ...top5,
+        {
+          ramo: 'Otros',
+          primas: tailPrimas,
+          primas_devengadas: tailPrimasDev,
+          siniestros_devengados: tailSiniestros,
+          gastos_devengados: tailGastos,
+          siniestralidad: tailPrimasDev !== 0 ? (tailSiniestros / tailPrimasDev) * 100 : 0,
+          gastos_percent: tailPrimasDev !== 0 ? (tailGastos / tailPrimasDev) * 100 : 0,
+          combined_ratio: otrosIC,
+          percentage: otrosPercentage,
+        },
+      ];
+    }
+
     // Calculate minimum value for small ramos (ensure visibility)
-    const maxPrimas = Math.max(...profile.top_ramos.map(r => Math.abs(r.primas)));
-    const minVisibleValue = maxPrimas * 0.05; // At least 5% of max for visibility
+    const maxPrimas = Math.max(...items.map((r) => Math.abs(r.primas)));
+    const minVisibleValue = maxPrimas * 0.05;
 
     return {
       name: 'portfolio',
-      children: profile.top_ramos.map((ramo): TreemapNodeData => ({
+      children: items.map((ramo): TreemapNodeData => ({
         name: ramo.ramo,
-        // Use absolute value for size, ensure minimum visibility
         value: Math.max(Math.abs(ramo.primas), minVisibleValue),
         primas: ramo.primas,
         percentage: ramo.percentage,
@@ -163,10 +198,10 @@ export function CompanyProfile() {
     return `${ratio.toFixed(1)}%`;
   };
 
-  // Get color for treemap tile based on combined ratio
+  // Get color for treemap tile based on combined ratio (3-band)
   const getTreemapColor = (ratio: number): string => {
-    // Distinctive colors - forest green and crimson, different from other UI elements
     if (ratio <= 100) return '#065f46'; // Deep forest green
+    if (ratio < 130) return '#ca8a04'; // Yellow-600
     return '#991b1b'; // Deep crimson red
   };
 
@@ -527,10 +562,10 @@ export function CompanyProfile() {
                         <p className="text-sm text-slate-500 mb-4">
                           Verde: IC 0–100% · Amarillo: IC 100–130% · Rojo: IC&gt; 130%
                         </p>
-                        <Card>
+                        <Card data-testid="treemap-container">
                           <CardContent className="p-4">
                             {treemapData ? (
-                              <div style={{ height: Math.max(300, profile.top_ramos.length * 40) }}>
+                              <div style={{ height: 240 }}>
                                 <ResponsiveTreeMap
                                   data={treemapData}
                                   identity="name"
@@ -595,7 +630,6 @@ export function CompanyProfile() {
 
                                               // Dynamic font sizes based on box size
                                               const nameFontSize = Math.max(10, Math.min(18, 10 + (sizeRatio * 8)));
-                                              const ratioFontSize = Math.max(14, Math.min(24, 14 + (sizeRatio * 10)));
 
                                               // Wrap text with padding (use 85% of width to leave margins)
                                               const availableWidth = node.width * 0.85;
@@ -604,10 +638,10 @@ export function CompanyProfile() {
                                               // Calculate vertical spacing
                                               const lineHeight = nameFontSize * 1.2;
                                               const totalNameHeight = nameLines.length * lineHeight;
-                                              const nameStartY = -(totalNameHeight / 2) - (ratioFontSize / 2) - 4;
+                                              const nameStartY = -(totalNameHeight / 2);
 
                                               return (
-                                                <g key={node.path} transform={`translate(${node.x + node.width / 2}, ${node.y + node.height / 2})`}>
+                                                <g key={node.path} transform={`translate(${node.x + node.width / 2}, ${node.y + node.height / 2})`} data-ic={data.combined_ratio.toFixed(3)}>
                                                   {/* Multi-line ramo name */}
                                                   <text
                                                     textAnchor="middle"
@@ -629,22 +663,6 @@ export function CompanyProfile() {
                                                         {line}
                                                       </tspan>
                                                     ))}
-                                                  </text>
-
-                                                  {/* Ratio percentage - positioned below name */}
-                                                  <text
-                                                    textAnchor="middle"
-                                                    dominantBaseline="central"
-                                                    style={{
-                                                      fill: '#fffbeb',
-                                                      fontSize: `${ratioFontSize}px`,
-                                                      fontWeight: 800,
-                                                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
-                                                      pointerEvents: 'none',
-                                                    }}
-                                                    y={nameStartY + totalNameHeight + (ratioFontSize / 2) + 4}
-                                                  >
-                                                    {formatRatio(data.combined_ratio)}
                                                   </text>
                                                 </g>
                                               );
@@ -710,7 +728,7 @@ export function CompanyProfile() {
                               </div>
                             ) : (
                               <div className="h-40 flex items-center justify-center text-slate-400">
-                                No hay datos de ramos disponibles
+                                Sin datos de ramos
                               </div>
                             )}
                           </CardContent>
