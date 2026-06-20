@@ -9,6 +9,8 @@ import type {
   CompanyListResponse,
   CompanyListParams,
   CompanyProfileResponse,
+  ComparisonMethod,
+  CompanyComparisonResponse,
 } from '@/types/api';
 import type { OperationsAPIResponse } from '@/types/operations';
 
@@ -80,6 +82,17 @@ export async function getCompanyProfile(codCia: string): Promise<CompanyProfileR
 export async function getCompanyOperations(codCia: string, ramo?: string | null): Promise<OperationsAPIResponse> {
   const params = ramo && ramo !== 'all' ? { ramo } : undefined;
   const { data } = await api.get<OperationsAPIResponse>(`/data/companies/${codCia}/operations`, { params });
+  return data;
+}
+
+export async function getCompanyComparison(
+  codCia: string,
+  method: ComparisonMethod,
+): Promise<CompanyComparisonResponse> {
+  const { data } = await api.get<CompanyComparisonResponse>(
+    `/data/companies/${codCia}/compare`,
+    { params: { method } },
+  );
   return data;
 }
 

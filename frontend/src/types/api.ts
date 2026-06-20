@@ -92,6 +92,36 @@ export interface RamoBreakdownItem {
   combined_ratio: number;
 }
 
+// Company comparison
+export type ComparisonMethod =
+  | 'total_percentile'
+  | 'main_ramo_percentile'
+  | 'ramo_similarity';
+
+export interface ComparisonCompanyItem {
+  cod_cia: string;
+  nombre_corto: string;
+  tipo_cia: string;
+  primas_emitidas: number;
+  ranking_position: number;
+  relative_position: number | null;
+  main_ramo_primas: number | null;
+  similarity_distance: number | null;
+}
+
+export interface CompanyComparisonResponse {
+  selected_company: ComparisonCompanyItem;
+  method: ComparisonMethod;
+  main_ramo: string | null;
+  main_ramo_percentage: number | null;
+  companies_above: ComparisonCompanyItem[];
+  companies_below: ComparisonCompanyItem[];
+  similar_companies: ComparisonCompanyItem[];
+  periodo: string;
+  total_companies_in_tipo: number;
+  total_companies_with_ramo: number | null;
+}
+
 // Company profile (single company)
 export interface CompanyProfileResponse {
   cod_cia: string;

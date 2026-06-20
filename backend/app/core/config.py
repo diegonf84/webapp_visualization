@@ -2,17 +2,19 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
-
-# Project root
+# Project root (backend/)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Data source configuration
-DATA_SOURCE = os.getenv("DATA_SOURCE", "local")  # "local" or "s3"
+# Load root .env first (data source + S3 credentials), then backend .env for
+# server-specific settings — first loaded value wins on conflicts.
+load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv(BASE_DIR / ".env")
 
 # Local data paths - configurable via environment variable for Docker
 _default_data_dir = BASE_DIR.parent / "data"
 LOCAL_DATA_DIR = Path(os.getenv("LOCAL_DATA_DIR", str(_default_data_dir)))
+
+DATA_SOURCE = os.getenv("DATA_SOURCE", "s3")
 SUBRAMOS_FILE = "subramos_historico.parquet"
 OTROS_CONCEPTOS_FILE = "otros_conceptos_historico.parquet"
 

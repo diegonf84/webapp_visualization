@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
 
 
@@ -159,6 +159,64 @@ class CompanyOperationsResponse(BaseModel):
     selected_ramo: Optional[str] = Field(None, description="Selected ramo filter (null = all)")
     periods: List[PeriodDataPoint] = Field(description="Time series data points")
     available_ramos: List[RamoOption] = Field(description="Available ramos for filtering")
+
+
+# Company comparison responses
+class ComparisonCompanyItem(BaseModel):
+    """Single company in comparison results."""
+    cod_cia: str = Field(description="Company code")
+    nombre_corto: str = Field(description="Company short name")
+    tipo_cia: str = Field(description="Company type")
+    primas_emitidas: float = Field(description="Total issued premiums")
+    ranking_position: int = Field(description="Position in the ranking")
+    relative_position: Optional[int] = Field(
+        None,
+        description="Position relative to selected company (-5 to +5, 0 = selected)"
+    )
+    main_ramo_primas: Optional[float] = Field(
+        None,
+        description="Primas emitidas in the main ramo (method 2 only)"
+    )
+    similarity_distance: Optional[float] = Field(
+        None,
+        description="Total distance score (lower = more similar, method 3 only)"
+    )
+
+
+class CompanyComparisonResponse(BaseModel):
+    """Company comparison response."""
+    selected_company: ComparisonCompanyItem = Field(description="The selected company")
+    method: Literal["total_percentile", "main_ramo_percentile", "ramo_similarity"] = Field(
+        description="Comparison method used"
+    )
+    main_ramo: Optional[str] = Field(
+        None,
+        description="Main ramo name (method 2 only)"
+    )
+    main_ramo_percentage: Optional[float] = Field(
+        None,
+        description="Percentage of primas in main ramo (method 2 only)"
+    )
+    companies_above: List[ComparisonCompanyItem] = Field(
+        default_factory=list,
+        description="Companies ranked above selected (methods 1 & 2)"
+    )
+    companies_below: List[ComparisonCompanyItem] = Field(
+        default_factory=list,
+        description="Companies ranked below selected (methods 1 & 2)"
+    )
+    similar_companies: List[ComparisonCompanyItem] = Field(
+        default_factory=list,
+        description="Similar companies by ramo distribution (method 3 only)"
+    )
+    periodo: str = Field(description="Period used for comparison (YYYYQQ)")
+    total_companies_in_tipo: int = Field(
+        description="Total companies of same tipo_cia in this period"
+    )
+    total_companies_with_ramo: Optional[int] = Field(
+        None,
+        description="Total companies operating in main ramo (method 2 only)"
+    )
 
 
 # Health check

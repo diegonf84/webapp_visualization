@@ -13,6 +13,11 @@ from app.logic.aggregations import (
     get_totals,
 )
 from app.logic.rankings import get_top_n
+from app.logic.comparisons import (
+    compare_by_total_percentile,
+    compare_by_main_ramo_percentile,
+    compare_by_ramo_similarity,
+)
 from app.models.responses import (
     KPIResponse,
     CompanyRankingResponse,
@@ -26,6 +31,8 @@ from app.models.responses import (
     CompanyOperationsResponse,
     PeriodDataPoint,
     RamoOption,
+    CompanyComparisonResponse,
+    ComparisonCompanyItem,
 )
 
 router = APIRouter()
@@ -583,3 +590,153 @@ async def get_company_operations(
         periods=periods,
         available_ramos=available_ramos,
     )
+
+
+@router.get("/companies/{cod_cia}/compare", response_model=CompanyComparisonResponse)
+async def compare_company(
+    cod_cia: str,
+    method: str = Query(
+        ...,
+        description="Comparison method: total_percentile, main_ramo_percentile, or ramo_similarity",
+        pattern="^(total_percentile|main_ramo_percentile|ramo_similarity)$"
+    ),
+    loader: DataLoader = Depends(get_loader),
+):
+    """
+    Compare a company with similar companies using one of three methods.
+
+    - **total_percentile**: Rank by total primas, select 5 above and 5 below
+    - **main_ramo_percentile**: Rank by primas in main ramo, select 5 above and 5 below
+    - **ramo_similarity**: Find 10 companies with most similar ramo distribution
+    """
+    from fastapi import HTTPException
+
+    df = loader.load_subramos()
+
+    # Get the latest period
+    latest_period = df["periodo"].max()
+    latest_df = df[df["periodo"] == latest_period]
+
+    # Get selected company info
+    company_df = latest_df[latest_df["cod_cia"] == cod_cia]
+
+    if company_df.empty:
+        raise HTTPException(status_code=404, detail=f"Company {cod_cia} not found")
+
+    tipo_cia = company_df.iloc[0]["tipo_cia"]
+
+    # Execute comparison based on method
+    try:
+        if method == "total_percentile":
+            result = compare_by_total_percentile(latest_df, cod_cia, tipo_cia)
+
+            return CompanyComparisonResponse(
+                selected_company=ComparisonCompanyItem(
+                    cod_cia=str(result["selected"]["cod_cia"]),
+                    nombre_corto=result["selected"]["nombre_corto"],
+                    tipo_cia=result["selected"]["tipo_cia"],
+                    primas_emitidas=float(result["selected"]["primas_emitidas"]),
+                    ranking_position=int(result["selected"]["ranking"]),
+                    relative_position=0,
+                ),
+                method=method,
+                companies_above=[
+                    ComparisonCompanyItem(
+                        cod_cia=str(c["cod_cia"]),
+                        nombre_corto=c["nombre_corto"],
+                        tipo_cia=c["tipo_cia"],
+                        primas_emitidas=float(c["primas_emitidas"]),
+                        ranking_position=int(c["ranking"]),
+                        relative_position=int(c["relative_position"]),
+                    )
+                    for c in result["above"]
+                ],
+                companies_below=[
+                    ComparisonCompanyItem(
+                        cod_cia=str(c["cod_cia"]),
+                        nombre_corto=c["nombre_corto"],
+                        tipo_cia=c["tipo_cia"],
+                        primas_emitidas=float(c["primas_emitidas"]),
+                        ranking_position=int(c["ranking"]),
+                        relative_position=int(c["relative_position"]),
+                    )
+                    for c in result["below"]
+                ],
+                periodo=str(latest_period),
+                total_companies_in_tipo=result["total_in_tipo"],
+            )
+
+        elif method == "main_ramo_percentile":
+            result = compare_by_main_ramo_percentile(latest_df, cod_cia, tipo_cia)
+
+            return CompanyComparisonResponse(
+                selected_company=ComparisonCompanyItem(
+                    cod_cia=str(result["selected"]["cod_cia"]),
+                    nombre_corto=result["selected"]["nombre_corto"],
+                    tipo_cia=result["selected"]["tipo_cia"],
+                    primas_emitidas=float(result["selected"]["primas_emitidas"]),
+                    ranking_position=int(result["selected"]["ranking"]),
+                    relative_position=0,
+                    main_ramo_primas=float(result["selected"]["main_ramo_primas"]),
+                ),
+                method=method,
+                main_ramo=result["main_ramo"],
+                main_ramo_percentage=result["main_ramo_percentage"],
+                companies_above=[
+                    ComparisonCompanyItem(
+                        cod_cia=str(c["cod_cia"]),
+                        nombre_corto=c["nombre_corto"],
+                        tipo_cia=c["tipo_cia"],
+                        primas_emitidas=float(c["primas_emitidas"]),
+                        ranking_position=int(c["ranking"]),
+                        relative_position=int(c["relative_position"]),
+                        main_ramo_primas=float(c["main_ramo_primas"]),
+                    )
+                    for c in result["above"]
+                ],
+                companies_below=[
+                    ComparisonCompanyItem(
+                        cod_cia=str(c["cod_cia"]),
+                        nombre_corto=c["nombre_corto"],
+                        tipo_cia=c["tipo_cia"],
+                        primas_emitidas=float(c["primas_emitidas"]),
+                        ranking_position=int(c["ranking"]),
+                        relative_position=int(c["relative_position"]),
+                        main_ramo_primas=float(c["main_ramo_primas"]),
+                    )
+                    for c in result["below"]
+                ],
+                periodo=str(latest_period),
+                total_companies_in_tipo=result["total_in_tipo"],
+                total_companies_with_ramo=result["total_companies_with_ramo"],
+            )
+
+        else:  # ramo_similarity
+            result = compare_by_ramo_similarity(latest_df, cod_cia, tipo_cia)
+
+            return CompanyComparisonResponse(
+                selected_company=ComparisonCompanyItem(
+                    cod_cia=str(result["selected"]["cod_cia"]),
+                    nombre_corto=result["selected"]["nombre_corto"],
+                    tipo_cia=result["selected"]["tipo_cia"],
+                    primas_emitidas=float(result["selected"]["primas_emitidas"]),
+                    ranking_position=0,  # Not applicable for similarity
+                ),
+                method=method,
+                similar_companies=[
+                    ComparisonCompanyItem(
+                        cod_cia=str(c["cod_cia"]),
+                        nombre_corto=c["nombre_corto"],
+                        tipo_cia=c["tipo_cia"],
+                        primas_emitidas=float(c["primas_emitidas"]),
+                        ranking_position=c["ranking_position"],  # Similarity rank
+                        similarity_distance=c["similarity_distance"],
+                    )
+                    for c in result["similar_companies"]
+                ],
+                periodo=str(latest_period),
+                total_companies_in_tipo=result["total_in_tipo"],
+            )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
