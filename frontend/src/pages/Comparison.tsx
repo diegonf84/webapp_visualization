@@ -15,14 +15,17 @@ import type { ComparisonMethod } from '@/types/api';
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'response' in error) {
     const status = (error as { response?: { status?: number } }).response?.status;
-    if (status === 400 || status === 404) {
-      return 'No se encontraron datos comparables para esta compania. Selecciona otra.';
+    if (status === 400) {
+      return 'No se encontraron datos comparables para esta compañía. Seleccioná otra.';
+    }
+    if (status === 404) {
+      return 'Compañía no encontrada. Seleccioná otra.';
     }
     if (status === 422) {
-      return 'Metodo de comparacion invalido.';
+      return 'Método de comparación inválido.';
     }
   }
-  return 'No se pudo completar la comparacion. Reintenta.';
+  return 'No se pudo completar la comparación. Reintentá.';
 }
 
 function LoadingSkeleton() {
