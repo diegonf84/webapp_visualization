@@ -134,7 +134,9 @@ function mockProfile(fixture: CompanyProfileResponse) {
 
 function renderProfile() {
   return render(
-    <MemoryRouter>
+    <MemoryRouter
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <CompanyProfile />
     </MemoryRouter>,
   );
