@@ -30,8 +30,8 @@ const accentStyles = {
     value: 'text-slate-900',
   },
   rose: {
-    icon: 'text-rose-500',
-    border: 'border-l-rose-500',
+    icon: 'text-rose-400',
+    border: 'border-l-rose-400',
     value: 'text-slate-900',
   },
   purple: {
@@ -61,8 +61,8 @@ export function KPICard({
         isLoading && 'animate-pulse'
       )}
     >
-      {/* Title row with icon */}
-      <div className="flex items-center justify-between mb-1">
+      {/* Title row with icon - min-h reserves space for 2 lines so all cards align */}
+      <div className="flex items-center justify-between mb-1 min-h-[1.625rem]">
         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-tight">
           {title}
         </p>

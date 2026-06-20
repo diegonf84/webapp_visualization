@@ -6,26 +6,22 @@ Interactive dashboard for visualizing Argentine insurance market metrics based o
 
 | Component | Description | Port |
 |-----------|-------------|------|
-| **React Frontend** | Modern React + TypeScript + Nivo charts | 80 (via Docker) |
+| **React Frontend** | React 18 + TypeScript + Vite + Tailwind + Nivo charts | 5173 (dev) / 80 (Docker) |
 | **FastAPI Backend** | RESTful API with S3/local data support | 8000 |
-| **Dash (Testing)** | Legacy Plotly Dash for quick testing | 8051 |
 
 ### Architecture Benefits
 - **Decoupled**: Frontend and backend scale independently
 - **Modern Stack**: React + TypeScript + TailwindCSS + Nivo charts
 - **Dockerized**: Single `docker compose up` to run everything
 - **S3 Support**: Load data from local files or AWS S3
-- **Render Ready**: Deploy to Render with `render.yaml` blueprint
+- **Tested**: pytest on the backend, vitest + Testing Library on the frontend
 
 ## Quick Start
 
 ### Option 1: Docker (Recommended)
 
 ```bash
-# Start everything with one command
 docker compose up --build
-
-# Access the dashboard
 open http://localhost
 ```
 
@@ -51,124 +47,42 @@ npm run dev
 - React Dashboard: http://localhost:5173
 - API Docs: http://localhost:8000/docs
 
-### Option 3: Legacy Dash (Testing Only)
+## Dashboard Pages
 
-For quick API testing with the legacy Plotly Dash interface:
-
-```bash
-# Terminal 1 - Backend
-cd backend && uv run uvicorn app.main:app --port 8000 --reload
-
-# Terminal 2 - Dash Frontend
-uv run python app_api.py
-```
-
-- Dash Dashboard: http://localhost:8051
-
-## Dashboard Usage
-
-### Market Overview Dashboard
-
-**Main Features:**
-- KPI cards showing market totals
+### Market Overview
+- KPI cards with market totals
 - Stacked bar chart of top N companies by primas emitidas
-- Donut chart showing ramo/subramo distribution
-- Real-time filtering and view mode switching
+- Donut chart of ramo / subramo distribution
+- Real-time filtering and view-mode switching (accumulated vs current)
 
-**Available Filters:**
-- **YEAR**: Select the fiscal year to display
-- **QUARTER**: Select the fiscal quarter
-  - March = Q3 (January-March)
-  - June = Q4 (April-June)
-  - September = Q1 (July-September)
-  - December = Q2 (October-December)
-- **RAMO**: Filter by insurance branch (Auto, Life, etc.)
-- **ENTITY**: Filter by one or more specific insurance companies
+### Company Profile
+**Access:** Click any company name in the market overview.
 
-**Data View Mode:**
-- **Accumulated**: Shows values accumulated from the start of the fiscal year
-- **Current**: Shows only the selected quarter's values
+Tabs:
+- **Resumen** — financial results (Resultado del Ejercicio), key ratios with market comparison, ramos treemap
+- **Operaciones** — time series of ratios, primas/siniestros, technical result, operational alerts
+- **Inversiones** — *coming soon*
+- **Comparación** — peer comparison (see below)
 
-**Visualization Controls:**
-- **TOP 10/15/20/50**: Limits the bar chart to the top N companies by issued premiums
+### Comparación (Company Peer Comparison)
+**Access:** Navigate to `/comparar`.
 
-### Company Profile Dashboard
+**Flow:**
+1. Pick a company using the search picker
+2. Toggle between three comparison methods:
+   - **Total Percentile** — peers above and below the selected company in its `tipo_cia`
+   - **Main Ramo Percentile** — same, but filtered to the company's main ramo
+   - **Similaridad por Ramos** — companies with the most similar ramo distribution
+3. View the selected company in context, ranked against peers (or sorted by similarity distance)
 
-**Access:** Click on any company name in the market overview to view detailed profile
-
-**Key Features:**
-
-1. **Resumen Tab** (Overview):
-   - **Resultados del Ejercicio**: Financial results with YoY variations
-     - Primas Emitidas, Resultado Técnico, Resultado Financiero, Resultado Final
-   - **Ratios Clave**: Performance ratios with market comparison
-     - Ratio Combinado (first), Siniestralidad, Gastos %
-     - Shows market average for same company type (Generales, ART, Vida, Retiro)
-   - **Composición de Cartera**: Interactive treemap visualization
-     - Box size proportional to primas_emitidas
-     - Color coded: Green (RC ≤ 100%), Red (RC > 100%)
-     - Shows ALL ramos with combined ratio performance
-     - Intelligent text wrapping for long ramo names
-     - Dynamic font sizing based on box size
-     - Hover tooltip with detailed metrics
-
-2. **Operaciones Tab** (Operations):
-   - **Ramo Selector**: Filter all charts by specific ramo or view all
-   - **Evolucion de Ratios** (Balance Data): Multi-line chart showing Ratio Combinado,
-     Siniestralidad, Gastos, and Market average over time with 100% equilibrium line
-   - **Primas y Siniestros** (Quarterly Data): Area chart showing earned premiums
-     and incurred claims for each 3-month period
-   - **Resultado Tecnico** (Quarterly Data): Bar chart with green/red bars for
-     positive/negative technical result each quarter
-   - **Puente de Resultado Tecnico** (Rolling 12 months): Waterfall chart explaining
-     why technical result changed YoY - shows impact of primas, siniestros, and gastos
-   - **Alertas Operacionales**: Automated alerts for ratio > 100%, YoY deterioration,
-     and growth imbalance patterns
-
-3. **Inversiones Tab** (Coming Soon):
-   - Asset composition and investment performance
-
-4. **Comparación Tab** (Coming Soon):
-   - Peer comparison and market positioning
-
-**Technical Features:**
-- **Negative Value Handling**: Correctly calculates ratios even with negative primas_devengadas
-- **Dynamic Scaling**: Text sizes and spacing adapt to available space
-- **Performance Indicators**: Color-coded badges for quick assessment
-- **Market Context**: All key ratios show market averages for peer comparison
-
-## Data Displayed
-
-### KPIs (Key Performance Indicators)
-
-- **Total Production**: Sum of issued premiums for all entities in the selected period
-- **Earned Premiums**: Premiums corresponding to the accounting period
-- **Incurred Claims**: Total claims recorded in the period
-- **Entities with Emissions**: Number of insurance companies that issued in the period
-
-### Bar Chart - "Total del Mercado"
-
-Shows the leading insurance companies ordered by issued premium volume:
-- **X-axis**: Insurance companies (TOP N selected)
-- **Y-axis**: Issued premiums in millions of pesos
-- **Colors**:
-  - Without ramo filter: colored by ramo
-  - With ramo filter: colored by subramo
-
-### Donut Chart - "Ramos" or "Subramos"
-
-Shows the percentage distribution of premiums:
-- **Without ramo filter**: Distribution by ramos
-- **With ramo filter**: Distribution by subramos of the selected ramo
+**Handled states:** loading skeleton, empty (no peers), error with status-specific copy (400/404/422), retry on network/5xx.
 
 ## API Endpoints
-
-The FastAPI backend exposes the following endpoints:
 
 ### Filters
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/filters` | Get all filter options |
+| `GET /api/filters` | All filter options |
 | `GET /api/filters/years` | Available years |
 | `GET /api/filters/quarters` | Available quarters |
 | `GET /api/filters/ramos` | Available ramos |
@@ -177,85 +91,105 @@ The FastAPI backend exposes the following endpoints:
 ### Data
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/data/kpis` | KPI totals based on filters |
+| `GET /api/data/kpis` | KPI totals for the current filters |
 | `GET /api/data/companies/ranking` | Top N companies by primas_emitidas |
-| `GET /api/data/distribution/ramos` | Distribution by ramos |
-| `GET /api/data/distribution/subramos` | Distribution by subramos |
-| `GET /api/data/companies/:codCia` | Company profile with full metrics, YoY, market averages, and all ramos |
-| `GET /api/data/companies/:codCia/operations` | Time series data for Operations tab (ratios, primas, siniestros, market) |
+| `GET /api/data/distribution/ramos` | Distribution by ramo |
+| `GET /api/data/distribution/subramos` | Distribution by subramo |
+| `GET /api/data/companies/{codCia}` | Company profile with full metrics, YoY, market averages, and ramos |
+| `GET /api/data/companies/{codCia}/operations` | Time series for the Operaciones tab |
+| `GET /api/data/companies/{codCia}/compare` | Peer comparison (query: `method=total_percentile` \| `main_ramo_percentile` \| `ramo_similarity`) |
 
 ### Query Parameters
 
-All data endpoints accept:
-- `year`: Fiscal year (YYYY)
-- `quarter`: Quarter (01, 02, 03, 04)
-- `ramo`: Ramo filter
-- `companies`: Comma-separated company names
-- `view_mode`: "accumulated" or "current"
-- `top_n`: Number of top companies (ranking endpoint only)
+Data endpoints accept:
+- `year` — fiscal year (YYYY)
+- `quarter` — `01`, `02`, `03`, `04`
+- `ramo` — ramo filter
+- `companies` — comma-separated company names
+- `view_mode` — `accumulated` or `current`
+- `top_n` — top N companies (ranking endpoint only)
 
 Example:
 ```bash
 curl "http://localhost:8000/api/data/kpis?year=2025&quarter=01&view_mode=accumulated"
 ```
 
+## Testing
+
+### Backend (pytest + httpx)
+
+```bash
+cd backend && uv sync
+uv run pytest tests/ -v
+```
+
+Coverage includes the three comparison methods exposed by `/compare`.
+
+### Frontend (vitest + Testing Library)
+
+```bash
+cd frontend && npm install
+npm run test:run
+```
+
+Coverage includes the comparison hook, picker, method toggle, results renderer, and page-level loading/error states.
+
 ## Project Structure
 
 ```
 webapp_visualization/
 ├── docker-compose.yml          # Docker orchestration
-├── frontend/                   # React + TypeScript frontend
+├── frontend/                   # React + TypeScript + Vite
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   ├── package.json
-│   ├── src/
-│   │   ├── components/         # React components
-│   │   │   ├── ui/             # Base UI (shadcn/ui)
-│   │   │   ├── filters/        # Filter components
-│   │   │   ├── charts/         # Nivo chart components
-│   │   │   ├── kpis/           # KPI card components
-│   │   │   └── layout/         # Layout components
-│   │   ├── hooks/              # React Query hooks
-│   │   ├── services/           # API client
-│   │   ├── types/              # TypeScript interfaces
-│   │   └── lib/                # Utilities & constants
-│   └── index.html
-├── backend/                    # FastAPI backend
+│   ├── vitest.config.ts
+│   └── src/
+│       ├── components/         # Atomic components
+│       │   ├── ui/             # Base UI primitives
+│       │   ├── filters/
+│       │   ├── charts/         # Nivo chart components
+│       │   ├── comparison/     # Comparison feature
+│       │   ├── kpis/
+│       │   └── layout/
+│       ├── hooks/              # React Query hooks
+│       ├── pages/              # Route-level pages
+│       ├── services/           # API client (axios)
+│       ├── types/              # TypeScript interfaces
+│       ├── test/               # Vitest setup
+│       └── lib/                # Utilities & constants
+├── backend/                    # FastAPI + uv
 │   ├── Dockerfile
 │   ├── pyproject.toml
+│   ├── tests/                  # pytest
 │   └── app/
 │       ├── main.py             # FastAPI application
 │       ├── api/routes/         # API endpoints
 │       ├── core/               # Config & data loader
-│       ├── logic/              # Business logic
+│       ├── logic/              # Business logic (incl. comparisons)
 │       └── models/             # Pydantic models
-├── data/                       # Data files (parquet/csv)
-├── app_api.py                  # Legacy Dash (testing only)
-├── config.py                   # Dash configuration
-└── src/                        # Dash components (legacy)
+└── data/                       # Parquet/CSV data files
 ```
 
 ## Data Notes
 
-- **Fiscal Year**: The Argentine insurance market fiscal year runs from July to June
+- **Fiscal Year**: Argentine insurance market fiscal year runs July to June
 - **Accumulated vs Current Data**:
-  - Accumulated data shows the total from the start of the fiscal year
-  - Current data shows only the selected quarter's value
-- **Amounts**: All monetary values are displayed in millions of Argentine pesos
+  - *Accumulated* shows totals from the start of the fiscal year
+  - *Current* shows only the selected quarter
+- **Amounts**: All monetary values are in millions of Argentine pesos
 - **Source**: Superintendencia de Seguros de la Nacion
 
 ## Configuration
 
-### Data Source
-
-The application looks for data in the following order:
-1. `.parquet` files in the `data/` folder
-2. `.csv` files in the `data/` folder
-3. `*_sample.csv` files for development
+### Data Source Lookup Order
+1. `.parquet` files in `data/`
+2. `.csv` files in `data/`
+3. `*_sample.csv` files (development)
 
 ### Environment Variables
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the project root:
 
 ```env
 # Data Source: "local" or "s3"
@@ -270,39 +204,8 @@ AWS_REGION=us-east-2
 ```
 
 **FastAPI Backend:**
-- `DATA_SOURCE`: "local" (default) or "s3"
-- `API_HOST`: API host (default: "0.0.0.0")
-- `API_PORT`: API port (default: 8000)
-- `DEBUG`: "true" or "false"
-- `CORS_ORIGINS`: Comma-separated allowed origins
-
-**Dash App (Legacy):**
-- `DASH_DEBUG`: "true" or "false"
-- `DASH_HOST`: Server host (default: "0.0.0.0")
-- `DASH_PORT`: Server port (default: 8050)
-
-## Deployment
-
-### Render (Recommended)
-
-The project includes a `render.yaml` blueprint for easy deployment:
-
-1. Push code to GitHub
-2. Go to [render.com](https://render.com) → New → Blueprint
-3. Connect your repo and set root directory to `webapp_visualization`
-4. Set secret environment variables in the dashboard:
-   - `S3_BUCKET`
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-
-Two services will be created:
-- **insurance-api**: FastAPI backend (Docker)
-- **insurance-dashboard**: React frontend (Static Site)
-
-## Implementation Plan
-
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the detailed roadmap:
-- Phase 1: Interactive Dashboard Prototype (Completed)
-- Phase 2A: Backend API Development (Completed)
-- Phase 2C: React Frontend + Docker (Completed)
-- Deployment: Render Blueprint (Completed)
+- `DATA_SOURCE` — `local` (default) or `s3`
+- `API_HOST` — API host (default: `0.0.0.0`)
+- `API_PORT` — API port (default: `8000`)
+- `DEBUG` — `true` or `false`
+- `CORS_ORIGINS` — comma-separated allowed origins

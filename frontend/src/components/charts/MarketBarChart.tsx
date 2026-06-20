@@ -42,12 +42,39 @@ export function MarketBarChart({
 }: MarketBarChartProps) {
   const isMobile = useIsMobile();
 
-  // Transform data for Nivo stacked bar chart
-  const { chartData, keys, colors } = useMemo(() => {
+  // Transform data for Nivo bar chart
+  const { chartData, keys, colors, isSimple } = useMemo(() => {
     if (!data || data.length === 0) {
-      return { chartData: [], keys: [], colors: {} };
+      return { chartData: [], keys: [], colors: {}, isSimple: true };
     }
 
+    // SIMPLE VIEW: when no ramo filter, show a single solid bar per company
+    if (!hasRamoFilter) {
+      const companyTotals = new Map<string, number>();
+      data.forEach((item) => {
+        const current = companyTotals.get(item.nombre_corto) || 0;
+        companyTotals.set(item.nombre_corto, current + item.primas_emitidas);
+      });
+
+      const sorted: BarDataItem[] = Array.from(companyTotals.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([company, total]) => ({
+          company: truncate(company, isMobile ? 12 : 20),
+          total: total / 1_000_000_000_000, // Convert to billones
+        }));
+
+      const simpleColors: Record<string, string> = { total: CHART_COLORS.corporate };
+      return {
+        // Reverse so the smallest company is first (renders at the bottom);
+        // with horizontal layout the biggest (last) ends up on top.
+        chartData: sorted.reverse(),
+        keys: ['total'],
+        colors: simpleColors,
+        isSimple: true,
+      };
+    }
+
+    // STACKED VIEW: existing grouped-by-category logic
     // Group by company
     const companyMap = new Map<string, Map<string, number>>();
     const categorySet = new Set<string>();
@@ -96,10 +123,10 @@ export function MarketBarChart({
     // Build chart data
     const chartData: BarDataItem[] = companyTotals.map(({ company }) => {
       const categories = companyMap.get(company)!;
-      const item: BarDataItem = { company: truncate(company, isMobile ? 12 : 14) };
+      const item: BarDataItem = { company: truncate(company, isMobile ? 12 : 20) };
 
       sortedCategories.forEach((category) => {
-        item[category] = (categories.get(category) || 0) / 1_000_000; // Convert to millions
+        item[category] = (categories.get(category) || 0) / 1_000_000_000_000; // Convert to billones
       });
 
       // Aggregate remaining categories into "Otros Ramos" or "Otros Subramos"
@@ -114,7 +141,7 @@ export function MarketBarChart({
         }
       });
       if (otros > 0) {
-        item[otrosLabel] = otros / 1_000_000;
+        item[otrosLabel] = otros / 1_000_000_000_000;
       }
 
       return item;
@@ -147,24 +174,61 @@ export function MarketBarChart({
       colors[otrosLabel] = CHART_COLORS.otros;
     }
 
-    return { chartData, keys, colors };
+    return { chartData: [...chartData].reverse(), keys, colors, isSimple: false };
   }, [data, hasRamoFilter, isMobile]);
 
   // Responsive chart configuration
+  // Format helpers for axis tick labels
+  const formatBillon = (v: number) =>
+    v.toLocaleString('es-AR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  // v is in billones; convert to millones (*1000) and show as integer
+  const formatMillon = (v: number) =>
+    (v * 1000).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+
   const chartConfig = useMemo(() => {
+    // Determine the axis scale: simple view always uses Billones.
+    // Stacked view switches to Millones when the max value is < 1 billón
+    // (e.g. when filtering by a specific ramo the per-company totals are
+    // much smaller and the B scale would round to 0,0).
+    let formatAxisValue: (v: number) => string;
+    let axisLegend: string;
+    if (isSimple) {
+      formatAxisValue = formatBillon;
+      axisLegend = 'Valores en Billones de $';
+    } else {
+      const maxValue = chartData.length > 0
+        ? Math.max(
+            ...chartData.map((d) =>
+              keys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0),
+            ),
+          )
+        : 0;
+      const useBillon = maxValue >= 1;
+      formatAxisValue = useBillon ? formatBillon : formatMillon;
+      axisLegend = useBillon
+        ? 'Valores en Billones de $'
+        : 'Valores en Millones de $';
+    }
+
+    // MOBILE
     if (isMobile) {
       return {
         layout: 'horizontal' as const,
-        margin: { top: 10, right: 20, bottom: 60, left: 90 },
+        margin: isSimple
+          ? { top: 10, right: 20, bottom: 50, left: 90 }
+          : { top: 10, right: 20, bottom: 60, left: 90 },
         height: Math.max(400, chartData.length * 35),
         axisBottom: {
           tickSize: 0,
           tickPadding: 8,
           tickRotation: 0,
-          legend: 'Millones $',
+          legend: axisLegend,
           legendPosition: 'middle' as const,
           legendOffset: 45,
-          format: (v: number) => `${v.toLocaleString('es-AR')}`,
+          format: formatAxisValue,
         },
         axisLeft: {
           tickSize: 0,
@@ -172,46 +236,72 @@ export function MarketBarChart({
           tickRotation: 0,
           truncateTickAt: 12,
         },
-        legends: [
-          {
-            dataFrom: 'keys' as const,
-            anchor: 'bottom' as const,
-            direction: 'row' as const,
-            justify: false,
-            translateX: 0,
-            translateY: 55,
-            itemsSpacing: 4,
-            itemWidth: 70,
-            itemHeight: 14,
-            itemDirection: 'left-to-right' as const,
-            itemOpacity: 1,
-            symbolSize: 8,
-            symbolShape: 'circle' as const,
-          },
-        ],
+        legends: isSimple
+          ? []
+          : [
+              {
+                dataFrom: 'keys' as const,
+                anchor: 'bottom' as const,
+                direction: 'row' as const,
+                justify: false,
+                translateX: 0,
+                translateY: 55,
+                itemsSpacing: 3,
+                itemWidth: 65,
+                itemHeight: 14,
+                itemDirection: 'left-to-right' as const,
+                itemOpacity: 1,
+                symbolSize: 8,
+                symbolShape: 'circle' as const,
+              },
+            ],
       };
     }
 
+    // DESKTOP - SIMPLE VIEW (no ramo filter)
+    if (isSimple) {
+      return {
+        layout: 'horizontal' as const,
+        margin: { top: 20, right: 30, bottom: 60, left: 150 },
+        height: Math.max(500, chartData.length * 32),
+        axisBottom: {
+          tickSize: 0,
+          tickPadding: 10,
+          tickRotation: 0,
+          legend: axisLegend,
+          legendPosition: 'middle' as const,
+          legendOffset: 50,
+          format: formatAxisValue,
+        },
+        axisLeft: {
+          tickSize: 0,
+          tickPadding: 10,
+          tickRotation: 0,
+          truncateTickAt: 20,
+        },
+        legends: [],
+      };
+    }
+
+    // DESKTOP - STACKED VIEW (ramo filter active)
     return {
-      layout: 'vertical' as const,
-      margin: { top: 10, right: 150, bottom: 100, left: 70 },
-      height: 480,
+      layout: 'horizontal' as const,
+      margin: { top: 20, right: 190, bottom: 60, left: 150 },
+      height: Math.max(500, chartData.length * 32),
       axisBottom: {
         tickSize: 0,
         tickPadding: 10,
-        tickRotation: -45,
+        tickRotation: 0,
+        legend: axisLegend,
         legendPosition: 'middle' as const,
-        legendOffset: 60,
-        truncateTickAt: 0,
+        legendOffset: 50,
+        format: formatAxisValue,
       },
       axisLeft: {
         tickSize: 0,
-        tickPadding: 8,
+        tickPadding: 10,
         tickRotation: 0,
-        legend: 'Millones $',
-        legendPosition: 'middle' as const,
-        legendOffset: -60,
-        format: (v: number) => `${v.toLocaleString('es-AR')}`,
+        truncateTickAt: 20,
       },
       legends: [
         {
@@ -219,19 +309,19 @@ export function MarketBarChart({
           anchor: 'right' as const,
           direction: 'column' as const,
           justify: false,
-          translateX: 145,
+          translateX: 180,
           translateY: 0,
-          itemsSpacing: 2,
-          itemWidth: 130,
-          itemHeight: 18,
+          itemsSpacing: 6,
+          itemWidth: 160,
+          itemHeight: 20,
           itemDirection: 'left-to-right' as const,
           itemOpacity: 1,
-          symbolSize: 10,
+          symbolSize: 11,
           symbolShape: 'circle' as const,
         },
       ],
     };
-  }, [isMobile, chartData.length]);
+  }, [isMobile, chartData.length, isSimple, keys]);
 
   return (
     <Card className="h-full">
@@ -259,7 +349,7 @@ export function MarketBarChart({
               indexBy="company"
               layout={chartConfig.layout}
               margin={chartConfig.margin}
-              padding={0.3}
+              padding={0.4}
               valueScale={{ type: 'linear' }}
               indexScale={{ type: 'band', round: true }}
               colors={(bar) => colors[bar.id as string] || '#94a3b8'}
@@ -310,7 +400,7 @@ export function MarketBarChart({
                     />
                     <span className="text-slate-300">{id}:</span>
                     <span className="font-medium">
-                      {formatCurrency(Number(value) * 1_000_000)}
+                      {formatCurrency(Number(value) * 1_000_000_000_000)}
                     </span>
                   </div>
                 </div>

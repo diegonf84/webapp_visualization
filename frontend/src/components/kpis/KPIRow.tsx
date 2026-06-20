@@ -1,4 +1,4 @@
-import { Building2, Banknote, Receipt, Wallet, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Building2, Banknote, Receipt, Wallet, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { KPICard } from './KPICard';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import type { KPIResponse } from '@/types/api';
@@ -48,7 +48,7 @@ export function KPIRow({ data, isLoading }: KPIRowProps) {
     {
       title: 'Resultado Técnico',
       value: data ? formatCurrency(resultadoTecnico) : '—',
-      icon: TrendingUp,
+      icon: resultadoTecnico >= 0 ? TrendingUp : TrendingDown,
       accentColor: resultadoTecnico >= 0 ? 'emerald' as const : 'rose' as const,
     },
   ];

@@ -44,3 +44,7 @@ data/*.csv
 
 # Claude
 .claude/
+
+# SDD / Gentle-AI temporary artifacts (local-only)
+openspec/
+.atl/

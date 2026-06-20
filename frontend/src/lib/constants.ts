@@ -38,6 +38,9 @@ export const CHART_COLORS = {
 
   // Otros category - always last (black for clear distinction)
   otros: '#1e1e1e',
+
+  // Corporate brand color (primary.900) - used for solid bars when no ramo filter
+  corporate: '#1a365d',
 } as const;
 
 // Quarter mappings (Argentine fiscal calendar)
