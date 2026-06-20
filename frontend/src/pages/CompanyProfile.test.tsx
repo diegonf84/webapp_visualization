@@ -246,7 +246,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
   describe('Treemap fixed height', () => {
     it('has fixed height of 240px', async () => {
       mockProfile(STD);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       // The height is on the inner wrapper div inside the Card
@@ -258,7 +258,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
   describe('Treemap cells show only ramo name', () => {
     it('renders ramo names without ratio percentages inside cells', async () => {
       mockProfile(STD);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       const texts = tm.querySelectorAll('text');
@@ -274,7 +274,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
   describe('3-color coding', () => {
     it('applies correct colors for STD ICs [80, 95, 110, 145]', async () => {
       mockProfile(STD);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       const rects = getCellRects(tm);
@@ -288,7 +288,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
 
     it('handles boundary values [100, 100.001, 129.999, 130]', async () => {
       mockProfile(BOUNDARY);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       const rects = getCellRects(tm);
@@ -304,7 +304,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
   describe('6-cell cap with Otros', () => {
     it('caps at 6 cells when >6 ramos', async () => {
       mockProfile(OVR);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       const rects = getCellRects(tm);
@@ -313,7 +313,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
 
     it('renders "Otros" cell name', async () => {
       mockProfile(OVR);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       const texts = Array.from(tm.querySelectorAll('text')).map(
@@ -347,7 +347,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
 
     it('"Otros" cell has non-zero area', async () => {
       mockProfile(OVR);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       const rects = Array.from(getCellRects(tm));
@@ -364,7 +364,7 @@ describe('CompanyProfile — Resumen Redesign', () => {
   describe('Shows all ramos when ≤6', () => {
     it('renders 4 cells for STD (4 ramos), no "Otros"', async () => {
       mockProfile(STD);
-      const { container } = renderProfile();
+      renderProfile();
       const tm = screen.getByTestId('treemap-container');
       await waitForTreemap(tm);
       const rects = getCellRects(tm);

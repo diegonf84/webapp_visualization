@@ -112,9 +112,6 @@ export function CompanyProfile() {
     ? (profile.gastos_devengados / profile.primas_devengadas) * 100
     : 0;
   const combinedRatio = siniestralidad + gastosPercent;
-  const resultadoTecnico = profile
-    ? profile.primas_devengadas - profile.siniestros_devengados - profile.gastos_devengados
-    : 0;
 
   // Helper to get ratio color variant
   const getRatioVariant = (value: number, thresholds: { good: number; warning: number }): 'success' | 'warning' | 'destructive' => {
