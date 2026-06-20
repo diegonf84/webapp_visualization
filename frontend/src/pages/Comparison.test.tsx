@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Comparison } from './Comparison';
 import * as useCompanyComparisonModule from '@/hooks/useCompanyComparison';
@@ -136,7 +136,7 @@ describe('Comparison Page - Loading State (R6)', () => {
     mockUseCompanies();
   });
 
-  it('should render loading skeleton when loading and company is selected (R6)', () => {
+  it('should render loading skeleton when loading and company is selected (R6)', async () => {
     vi.mocked(useCompanyComparisonModule.useCompanyComparison).mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -151,11 +151,23 @@ describe('Comparison Page - Loading State (R6)', () => {
 
     render(<Comparison />);
 
-    // The page should show the loading skeleton (animate-pulse class)
-    // We can check for the presence of the skeleton by looking for the loading indicator
-    // Since the skeleton doesn't have specific text, we verify the structure exists
-    const mainContent = screen.getByRole('main');
-    expect(mainContent).toBeInTheDocument();
+    // Type in the picker search input to open the dropdown
+    const searchInput = screen.getByPlaceholderText(/buscar compania/i);
+    fireEvent.change(searchInput, { target: { value: 'Alpha' } });
+
+    // Wait for the dropdown to appear and click the company
+    await waitFor(() => {
+      expect(screen.getByText('Company Alpha')).toBeInTheDocument();
+    });
+
+    const companyButton = screen.getByText('Company Alpha').closest('button');
+    expect(companyButton).toBeTruthy();
+    fireEvent.click(companyButton!);
+
+    // Now that a company is selected and isLoading is true, the skeleton should render
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
+    });
 
     // Verify no stale data is shown (no comparison results)
     expect(screen.queryByText(/posición en el ranking/i)).not.toBeInTheDocument();
