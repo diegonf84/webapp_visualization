@@ -22,7 +22,8 @@ RUN uv pip install --system .
 RUN mkdir -p /app/data
 
 # Environment variables
-ENV DATA_SOURCE=local
+# DATA_SOURCE defaults to "s3" in backend/app/core/config.py;
+# docker-compose.yml overrides per-environment with ${DATA_SOURCE:-s3}
 ENV API_HOST=0.0.0.0
 ENV API_PORT=8000
 ENV DEBUG=false

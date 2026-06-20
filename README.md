@@ -192,8 +192,8 @@ webapp_visualization/
 Create a `.env` file in the project root:
 
 ```env
-# Data Source: "local" or "s3"
-DATA_SOURCE=local
+# Data Source: "local" or "s3" (defaults to "s3" in backend/app/core/config.py)
+DATA_SOURCE=s3
 
 # S3 Configuration (only needed if DATA_SOURCE=s3)
 S3_BUCKET=your-bucket-name
@@ -204,7 +204,7 @@ AWS_REGION=us-east-2
 ```
 
 **FastAPI Backend:**
-- `DATA_SOURCE` — `local` (default) or `s3`
+- `DATA_SOURCE` — `s3` (default) or `local`
 - `API_HOST` — API host (default: `0.0.0.0`)
 - `API_PORT` — API port (default: `8000`)
 - `DEBUG` — `true` or `false`
