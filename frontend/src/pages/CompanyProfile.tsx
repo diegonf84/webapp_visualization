@@ -272,20 +272,11 @@ export function CompanyProfile() {
                     </div>
 
                     {/* Right: Key Metrics */}
-                    <div className="flex flex-wrap gap-6">
-                      <div className="text-center">
-                        <div className="flex items-center gap-1 text-slate-500 text-sm mb-1">
-                          <DollarSign className="h-4 w-4" />
-                          Primas Emitidas
-                        </div>
-                        <div className="text-xl font-bold text-slate-900">
-                          {formatCurrency(profile.primas_emitidas)}
-                        </div>
-                      </div>
+                    <div className="flex flex-wrap gap-6" data-testid="top-metrics-row">
                       <div className="text-center">
                         <div className="flex items-center gap-1 text-slate-500 text-sm mb-1">
                           <Layers className="h-4 w-4" />
-                          Ramos
+                          Cantidad de Ramos
                         </div>
                         <div className="text-xl font-bold text-slate-900">
                           {profile.ramos_count}
@@ -309,25 +300,12 @@ export function CompanyProfile() {
                           {gastosPercent.toFixed(1)}%
                         </div>
                       </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1 text-slate-500 text-sm mb-1">
-                          <TrendingUp className="h-4 w-4" />
-                          Resultado Tecnico
-                        </div>
-                        <div className={cn(
-                          'text-xl font-bold',
-                          resultadoTecnico >= 0 ? 'text-emerald-600' : 'text-red-600'
-                        )}>
-                          {formatCurrency(resultadoTecnico)}
-                        </div>
-                      </div>
                     </div>
                   </div>
 
                   {/* Top 5 Ramos */}
                   {profile.top_ramos && profile.top_ramos.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-slate-100">
-                      <p className="text-xs text-slate-500 mb-2 uppercase tracking-wide">Top 5 Ramos:</p>
                       <div className="flex flex-wrap gap-2">
                         {profile.top_ramos.map((ramo, index) => (
                           <Badge
@@ -469,7 +447,7 @@ export function CompanyProfile() {
                           Ratios Clave
                         </h3>
                         <p className="text-sm text-slate-500 mb-4">
-                          Indicadores de desempeno del periodo acumulado
+                          Indicadores generales de desempeño
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <Card>
